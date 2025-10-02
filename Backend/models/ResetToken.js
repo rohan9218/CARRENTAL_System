@@ -1,0 +1,17 @@
+import mongoose from "mongoose";
+
+const resetTokenSchema = new mongoose.Schema(
+    {
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+        tokenHash: { type: String, required: true },
+        expiresAt: { type: Date, required: true, index: true },
+        createdAt: { type: Date, default: Date.now },
+    },
+    { timestamps: false }
+);
+
+// Auto-delete after expiresAt
+resetTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+const ResetToken = mongoose.model("ResetToken", resetTokenSchema);
+export default ResetToken;
