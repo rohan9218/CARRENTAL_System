@@ -1,6 +1,7 @@
 import { Toaster } from "react-hot-toast";
 import { Route, Routes, useLocation } from "react-router-dom";
 import ContactUs from "./components/ContactUs";
+import FeedbackForm from "./components/FeedbackForm";
 import Footer from "./components/Footer";
 import Login from "./components/Login";
 import Navbar from "./components/Navbar";
@@ -19,6 +20,7 @@ import Dashboard from "./pages/owner/Dashboard";
 import Layout from "./pages/owner/Layout";
 import ManageBookings from "./pages/owner/ManageBookings";
 import ManageCars from "./pages/owner/ManageCars";
+import OwnerFeedbacks from "./pages/owner/OwnerFeedbacks";
 import Owners from "./pages/owner/Owners";
 import PendingList from "./pages/owner/PendingList";
 import Profile from "./pages/Profile"; // ✅ Import Profile
@@ -47,6 +49,9 @@ const App = () => {
 
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
+      
+        <Route path="/feedback" element={<FeedbackForm />} />
+        <Route path="/owner/feedbacks" element={<OwnerFeedbacks />} />
 
         {/* ✅ Customer Profile Route Added */}
         <Route path="/profile" element={<Profile />} />

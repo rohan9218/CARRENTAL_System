@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
 import { useNavigate } from "react-router-dom"
 import { assets } from "../assets/assets"
+import FeedbackForm from "../components/FeedbackForm"; // ✅ Import FeedbackForm
 import Title from "../components/Title"
 import { useAppContext } from "../context/AppContext"
 
@@ -11,6 +12,8 @@ const MyBookings = () => {
   const navigate = useNavigate()
 
   const [bookings, setBookings] = useState([])
+  const [selectedBooking, setSelectedBooking] = useState(null) // ✅ Track booking for feedback
+  const [showFeedback, setShowFeedback] = useState(false)      // ✅ Control modal
 
   const fetchMyBookings = async () => {
     try {
@@ -44,6 +47,20 @@ const MyBookings = () => {
   const handleUpdate = (booking) => {
     navigate(`/update-booking/${booking._id}`, { state: { booking } })
   }
+
+  // ✅ Open Feedback Modal
+  const handleFeedback = (booking) => {
+    setSelectedBooking(booking)
+    setShowFeedback(true)
+  }
+
+  // ✅ Show toast after page refresh if feedback was submitted
+  useEffect(() => {
+    if (localStorage.getItem("feedbackSubmitted") === "true") {
+      toast.success("Feedback submitted successfully ✅");
+      localStorage.removeItem("feedbackSubmitted"); // Clear flag
+    }
+  }, [])
 
   useEffect(() => {
     if (user) fetchMyBookings()
@@ -91,8 +108,8 @@ const MyBookings = () => {
                 <p className={`px-3 py-1 text-xs rounded-full ${booking.status === 'confirmed'
                   ? 'bg-green-400/15 text-green-600'
                   : booking.status === 'pending'
-                  ? 'bg-yellow-400/15 text-yellow-600'
-                  : 'bg-red-400/15 text-red-600'
+                    ? 'bg-yellow-400/15 text-yellow-600'
+                    : 'bg-red-400/15 text-red-600'
                   }`}>
                   {booking.status}
                 </p>
@@ -163,11 +180,30 @@ const MyBookings = () => {
                 >
                   Delete Booking
                 </button>
+                {/* Feedback Button */}
+                {new Date(booking.returnDate) <= new Date() && ( // Only show if return date is today or past
+                  <button
+                    type="button"
+                    onClick={() => handleFeedback(booking)}
+                    className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs"
+                  >
+                    Feedback
+                  </button>
+                )}
+
               </div>
             </div>
           </motion.div>
         ))}
       </div>
+
+      {/* ✅ Feedback Modal */}
+      {showFeedback && selectedBooking && (
+        <FeedbackForm
+          booking={selectedBooking}
+          onClose={() => setShowFeedback(false)}
+        />
+      )}
     </motion.div>
   )
 }

@@ -22,6 +22,7 @@ import edit_icon_1 from './edit_icon_1.svg';
 import eye_close_icon from "./eye_close_icon.svg";
 import eye_icon from "./eye_icon.svg";
 import facebook_logo from "./facebook_logo.svg";
+import feedback from "./feedback.svg";
 import filter_icon from "./filter_icon.svg";
 import fuel_icon from "./fuel_icon.svg";
 import gmail_logo from "./gmail_logo.svg";
@@ -94,7 +95,7 @@ export const assets = {
     car_image4,
     mic_icon,
     edit_icon_1, user_icon,
-    owner
+    owner,feedback
 }
 
 export const menuLinks = [
@@ -108,7 +109,7 @@ export const ownerMenuLinks = [
     { name: "Add car", path: "/owner/add-car", icon: addIcon, coloredIcon: addIconColored },
     { name: "Manage Cars", path: "/owner/manage-cars", icon: carIcon, coloredIcon: carIconColored },
     { name: "Manage Bookings", path: "/owner/manage-bookings", icon: listIcon, coloredIcon: listIconColored },
-    
+    { name: "Feedback", path: "/owner/feedbacks", icon: feedback },
     { name: "Customers", path: "/owner/customers", icon:customer_service  },
     { name: "Owners", path: "/owner/owners",icon:owner  },
 

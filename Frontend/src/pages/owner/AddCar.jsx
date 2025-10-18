@@ -237,7 +237,7 @@ const AddCar = () => {
           </div>
 
           <div className="flex flex-col">
-            <label>Year</label>
+            <label>Year (launch)</label>
             <input
               value={car.year}
               onChange={(e) => setCar({ ...car, year: e.target.value })}
