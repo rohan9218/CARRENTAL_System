@@ -14,12 +14,14 @@ import MyBookings from "./pages/MyBookings";
 import AddCar from "./pages/owner/AddCar";
 import BookingsList from "./pages/owner/BookingsList";
 import CarsList from "./pages/owner/CarsList";
+import CommissionStats from "./pages/owner/CommissionStats";
 import ConfirmedList from "./pages/owner/ConfirmedList";
 import CustomerList from "./pages/owner/CustomerList";
 import Dashboard from "./pages/owner/Dashboard";
 import Layout from "./pages/owner/Layout";
 import ManageBookings from "./pages/owner/ManageBookings";
 import ManageCars from "./pages/owner/ManageCars";
+import MonthlyRevenue from "./pages/owner/MonthlyRevenue";
 import OwnerFeedbacks from "./pages/owner/OwnerFeedbacks";
 import Owners from "./pages/owner/Owners";
 import PendingList from "./pages/owner/PendingList";
@@ -59,6 +61,10 @@ const App = () => {
         {/* Resources */}
         <Route path="/helpcenter" element={<HelpCenter />} />
         <Route path="/teamservice" element={<TeamService />} />
+
+        <Route path="/owner/monthly-revenue" element={<MonthlyRevenue />} />
+        <Route path="/owner/commission-stats" element={<CommissionStats />} />
+
 
         <Route path="/owner" element={<Layout />}>
           <Route index element={<Dashboard />} /> {/* Default route for /owner */}

@@ -191,7 +191,7 @@ export const getDashboardData = async (req, res) => {
                     }
                 }
             ]);
-            
+
             commission = commissionData.length > 0 ? parseFloat(commissionData[0].totalCommission.toFixed(1)) : 0;
         }
 
@@ -431,5 +431,139 @@ export const getLoggedInOwner = async (req, res) => {
     } catch (error) {
         console.error("Error fetching logged-in owner", error);
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+// ✅ Daily Revenue Stats for a Selected Month
+export const getMonthlyRevenueStats = async (req, res) => {
+    try {
+        const { _id, role } = req.user;
+        const { month, year } = req.query; // e.g., month=10&year=2025
+
+        if (role !== "owner" && role !== "admin") {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
+
+        const targetMonth = parseInt(month) - 1; // JS months are 0-based
+        const targetYear = parseInt(year);
+
+        // Start and end of the month
+        const startDate = new Date(targetYear, targetMonth, 1);
+        const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59);
+
+        const ownedCars = await Car.find({ owner: _id });
+        const ownedCarIds = ownedCars.map(car => car._id);
+
+        const bookings = await Booking.find({
+            car: { $in: ownedCarIds },
+            status: "confirmed",
+            createdAt: { $gte: startDate, $lte: endDate },
+        }).sort({ createdAt: 1 });
+
+        // Initialize daily revenue
+        const daysInMonth = endDate.getDate();
+        const dailyRevenue = Array(daysInMonth).fill(0);
+
+        bookings.forEach((booking) => {
+            const day = new Date(booking.createdAt).getDate();
+            const revenue = booking.ownerPrice || booking.price || 0;
+            dailyRevenue[day - 1] += revenue;
+        });
+
+        const revenueData = dailyRevenue.map((rev, i) => ({
+            day: i + 1,
+            revenue: parseFloat(rev.toFixed(2)),
+        }));
+
+        res.json({ success: true, revenueData });
+    } catch (error) {
+        console.error("Error fetching daily revenue stats:", error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ✅ Daily Commission Stats (Fixed for Main Owner)
+export const getCommissionStats = async (req, res) => {
+    try {
+        const { _id, role, email } = req.user;
+        const { month, year } = req.query;
+
+        if (role !== "owner" && role !== "admin") {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
+
+        const targetMonth = parseInt(month) - 1; // 0-indexed
+        const targetYear = parseInt(year);
+        const startDate = new Date(targetYear, targetMonth, 1);
+        const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59);
+
+        let bookings = [];
+
+        if (email === "rohandesai9218@gmail.com") {
+            // 🔑 Main Owner: commission from all confirmed bookings not owned by main owner
+            bookings = await Booking.aggregate([
+                {
+                    $lookup: {
+                        from: "cars",
+                        localField: "car",
+                        foreignField: "_id",
+                        as: "carDetails"
+                    }
+                },
+                { $unwind: "$carDetails" },
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "carDetails.owner",
+                        foreignField: "_id",
+                        as: "carOwner"
+                    }
+                },
+                { $unwind: "$carOwner" },
+                {
+                    $match: {
+                        status: "confirmed",
+                        "carOwner.email": { $ne: "rohandesai9218@gmail.com" },
+                        createdAt: { $gte: startDate, $lte: endDate }
+                    }
+                },
+                {
+                    $project: {
+                        createdAt: 1,
+                        commission: { $ifNull: ["$commission", { $multiply: ["$price", 0.1] }] }
+                    }
+                }
+            ]);
+        } else {
+            // 🔑 Normal Owner: show commission for their own bookings
+            const ownedCars = await Car.find({ owner: _id }).select("_id");
+            const ownedCarIds = ownedCars.map(car => car._id);
+
+            bookings = await Booking.find({
+                car: { $in: ownedCarIds },
+                status: "confirmed",
+                createdAt: { $gte: startDate, $lte: endDate },
+            }).select("createdAt price adminCommission");
+        }
+
+        // ✅ Build daily commission chart
+        const daysInMonth = endDate.getDate();
+        const dailyCommission = Array(daysInMonth).fill(0);
+
+        bookings.forEach(b => {
+            const date = new Date(b.createdAt);
+            const day = date.getDate();
+            const commission = b.commission || b.adminCommission || (b.price * 0.1);
+            dailyCommission[day - 1] += commission;
+        });
+
+        const commissionData = dailyCommission.map((val, i) => ({
+            day: i + 1,
+            commission: parseFloat(val.toFixed(2)),
+        }));
+
+        res.json({ success: true, commissionData });
+    } catch (error) {
+        console.error("Error fetching commission stats:", error.message);
+        res.status(500).json({ success: false, message: "Failed to fetch commission stats" });
     }
 };

@@ -5,9 +5,11 @@ import {
     deleteCar,
     getAllBookings,
     getCarById,
+    getCommissionStats,
     getConfirmedBookings,
     getDashboardData,
     getLoggedInOwner,
+    getMonthlyRevenueStats,
     getOwnerCars,
     getOwnerCustomers,
     getPendingBookings,
@@ -39,6 +41,9 @@ ownerRouter.post("/update-image", upload.single("image"), protect, updateUserIma
 ownerRouter.get("/bookings", protect, getAllBookings);
 ownerRouter.get("/bookings/pending", protect, getPendingBookings);
 ownerRouter.get("/bookings/confirmed", protect, getConfirmedBookings);
+ownerRouter.get("/revenue-stats", protect, getMonthlyRevenueStats);
+ownerRouter.get("/commission-stats", protect, getCommissionStats);
+
 
 ownerRouter.get("/customers", protect, getOwnerCustomers);
 

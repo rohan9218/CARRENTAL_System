@@ -48,7 +48,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!loading && !isOwner) {
-      navigate("/"); // ✅ only redirect after loading is complete
+      navigate("/");
     }
   }, [loading, isOwner, navigate]);
 
@@ -59,7 +59,7 @@ const Dashboard = () => {
   }, [isOwner]);
 
   if (loading) {
-    return <p className="text-center mt-10">Loading...</p>; // ✅ prevent flicker redirect
+    return <p className="text-center mt-10">Loading...</p>;
   }
 
   return (
@@ -123,8 +123,11 @@ const Dashboard = () => {
 
         {/* Monthly revenue + Commission */}
         <div className="flex flex-col gap-6 w-full md:max-w-xs">
-          {/* Monthly revenue */}
-          <div className="p-4 md:p-6 border border-borderColor rounded-md">
+          {/* ✅ Monthly revenue box navigates to graph page */}
+          <div
+            onClick={() => navigate("/owner/monthly-revenue")}
+            className="p-4 md:p-6 border border-borderColor rounded-md cursor-pointer hover:shadow-md transition"
+          >
             <h1 className="text-lg font-medium">Monthly Revenue</h1>
             <p className="text-gray-500">Revenue for current month</p>
             <p className="text-3xl mt-6 font-semibold text-primary">
@@ -134,7 +137,10 @@ const Dashboard = () => {
 
           {/* Commission Box only for specific owner */}
           {user?.email === "rohandesai9218@gmail.com" && (
-            <div className="p-4 md:p-6 border border-borderColor rounded-md">
+            <div
+              onClick={() => navigate("/owner/commission-stats")}
+              className="p-4 md:p-6 border border-borderColor rounded-md cursor-pointer hover:shadow-md transition"
+            >
               <h1 className="text-lg font-medium">Commission</h1>
               <p className="text-gray-500">Your earned commission</p>
               <p className="text-3xl mt-6 font-semibold text-primary">
@@ -142,6 +148,7 @@ const Dashboard = () => {
               </p>
             </div>
           )}
+
         </div>
       </div>
     </div>
