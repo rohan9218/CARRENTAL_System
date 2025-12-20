@@ -1,9 +1,13 @@
 // src/controllers/ownerController.js
 import fs from "fs";
+import { sendEmail } from "../configs/email.js"; // or wherever your email.js is located
 import imagekit from "../configs/imageKit.js";
 import Booking from "../models/Booking.js";
 import Car from "../models/Car.js";
 import User from "../models/User.js";
+
+// ✅ MAIN OWNER EMAIL FROM .env
+const MAIN_OWNER_EMAIL = process.env.MAIN_OWNER_EMAIL;
 
 export const changeRoleToOwner = async (req, res) => {
     try {
@@ -15,25 +19,38 @@ export const changeRoleToOwner = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
-
 // Api to list Car
 export const addCar = async (req, res) => {
     try {
         const { _id } = req.user;
         let car = JSON.parse(req.body.carData);
-        const imageFile = req.file;
+        const imageFile = req.files?.image?.[0]; // ✅ Updated for multiple files
+        const insuranceFile = req.files?.insurancePaper?.[0]; // ✅ Added insurance file
 
-        // Upload Image to ImageKit
-        const fileBuffer = fs.readFileSync(imageFile.path);
-        const response = await imagekit.upload({
-            file: fileBuffer,
+        // Validate required files
+        if (!imageFile || !insuranceFile) {
+            return res.status(400).json({ success: false, message: "Car image and insurance paper are required" });
+        }
+
+        // Upload Car Image to ImageKit
+        const imageBuffer = fs.readFileSync(imageFile.path);
+        const imageResponse = await imagekit.upload({
+            file: imageBuffer,
             fileName: imageFile.originalname,
             folder: '/cars',
         });
 
-        // Optimization through imagekit URL transformation
+        // Upload Insurance Paper to ImageKit
+        const insuranceBuffer = fs.readFileSync(insuranceFile.path);
+        const insuranceResponse = await imagekit.upload({
+            file: insuranceBuffer,
+            fileName: insuranceFile.originalname,
+            folder: '/insurance',
+        });
+
+        // Optimization through imagekit URL transformation for car image
         const optimizedImageUrl = imagekit.url({
-            path: response.filePath,
+            path: imageResponse.filePath,
             transformation: [
                 { width: '1280' },
                 { quality: 'auto' },
@@ -41,8 +58,13 @@ export const addCar = async (req, res) => {
             ],
         });
 
+        // Insurance document URL (no transformation for documents)
+        const insuranceUrl = insuranceResponse.url;
+
         const image = optimizedImageUrl;
-        await Car.create({ ...car, owner: _id, image });
+        const insurancePaper = insuranceUrl; // ✅ Added insurance paper URL
+        
+        await Car.create({ ...car, owner: _id, image, insurancePaper });
 
         res.json({ success: true, message: "Car Added" });
     } catch (error) {
@@ -50,7 +72,6 @@ export const addCar = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 };
-
 // API to List Owner Cars
 export const getOwnerCars = async (req, res) => {
     try {
@@ -153,7 +174,7 @@ export const getDashboardData = async (req, res) => {
 
         // Calculate commission for main owner only - FIXED COMMISSION LOGIC
         let commission = 0;
-        if (email === "rohandesai9218@gmail.com") {
+        if (email === MAIN_OWNER_EMAIL) {
             // Calculate commission from all bookings where car owner is NOT rohandesai9218@gmail.com
             const commissionData = await Booking.aggregate([
                 {
@@ -181,7 +202,7 @@ export const getDashboardData = async (req, res) => {
                 {
                     $match: {
                         status: "confirmed",
-                        "carOwner.email": { $ne: "rohandesai9218@gmail.com" }
+                        "carOwner.email": { $ne: MAIN_OWNER_EMAIL }
                     }
                 },
                 {
@@ -321,20 +342,19 @@ export const updateCar = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const carData = JSON.parse(req.body.carData); // from frontend formData
+        const carData = JSON.parse(req.body.carData);
         let updateFields = { ...carData };
 
-        // ✅ If image uploaded → upload to ImageKit instead of local
-        if (req.file) {
-            const fileBuffer = fs.readFileSync(req.file.path);
+        // ✅ If image uploaded → upload to ImageKit
+        if (req.files?.image?.[0]) {
+            const fileBuffer = fs.readFileSync(req.files.image[0].path);
 
             const response = await imagekit.upload({
                 file: fileBuffer,
-                fileName: req.file.originalname,
+                fileName: req.files.image[0].originalname,
                 folder: "/cars",
             });
 
-            // Optimization through ImageKit URL transformation
             const optimizedImageUrl = imagekit.url({
                 path: response.filePath,
                 transformation: [
@@ -345,6 +365,19 @@ export const updateCar = async (req, res) => {
             });
 
             updateFields.image = optimizedImageUrl;
+        }
+
+        // ✅ If insurance paper uploaded → upload to ImageKit
+        if (req.files?.insurancePaper?.[0]) {
+            const fileBuffer = fs.readFileSync(req.files.insurancePaper[0].path);
+
+            const response = await imagekit.upload({
+                file: fileBuffer,
+                fileName: req.files.insurancePaper[0].originalname,
+                folder: "/insurance",
+            });
+
+            updateFields.insurancePaper = response.url;
         }
 
         const updatedCar = await Car.findByIdAndUpdate(id, updateFields, { new: true });
@@ -370,7 +403,7 @@ export const getOwnerCustomers = async (req, res) => {
 
         let customers = [];
 
-        if (email === "rohandesai9218@gmail.com") {
+        if (email === MAIN_OWNER_EMAIL) {
             // 🔑 Main Owner → get all customers from all owners
             const bookings = await Booking.find()
                 .populate("user", "name email role")
@@ -414,7 +447,7 @@ export const getLoggedInOwner = async (req, res) => {
             return res.status(403).json({ success: false, message: "Unauthorized" });
         }
 
-        if (email === "rohandesai9218@gmail.com") {
+        if (email === MAIN_OWNER_EMAIL) {
             // 🔑 Main Owner → return all owners list
             const owners = await User.find({ role: "owner" }).select("name email role image");
             return res.json(owners);
@@ -498,7 +531,7 @@ export const getCommissionStats = async (req, res) => {
 
         let bookings = [];
 
-        if (email === "rohandesai9218@gmail.com") {
+        if (email === MAIN_OWNER_EMAIL) {
             // 🔑 Main Owner: commission from all confirmed bookings not owned by main owner
             bookings = await Booking.aggregate([
                 {
@@ -522,7 +555,7 @@ export const getCommissionStats = async (req, res) => {
                 {
                     $match: {
                         status: "confirmed",
-                        "carOwner.email": { $ne: "rohandesai9218@gmail.com" },
+                        "carOwner.email": { $ne: MAIN_OWNER_EMAIL },
                         createdAt: { $gte: startDate, $lte: endDate }
                     }
                 },
@@ -565,5 +598,208 @@ export const getCommissionStats = async (req, res) => {
     } catch (error) {
         console.error("Error fetching commission stats:", error.message);
         res.status(500).json({ success: false, message: "Failed to fetch commission stats" });
+    }
+};
+
+
+// ✅ Get Dashboard Data for Any Owner (used by Main Owner)
+export const getDashboardDataById = async (req, res) => {
+    try {
+        const { ownerId } = req.params;
+        const { email } = req.user;
+
+        // Allow only main owner to view other owners’ data
+        if (email !== MAIN_OWNER_EMAIL) {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
+
+        // Find the target owner
+        const owner = await User.findById(ownerId);
+        if (!owner) {
+            return res.status(404).json({ success: false, message: "Owner not found" });
+        }
+
+        // Get all cars owned by that owner
+        const ownedCars = await Car.find({ owner: owner._id });
+        const ownedCarIds = ownedCars.map(car => car._id);
+
+        // Get bookings only for that owner’s cars
+        const bookings = await Booking.find({ car: { $in: ownedCarIds } })
+            .populate("car")
+            .sort({ createdAt: -1 });
+
+        const filteredBookings = bookings.filter(b => b.car !== null);
+
+        // Calculate current month's revenue
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const monthlyRevenue = filteredBookings
+            .filter(b => {
+                const d = new Date(b.createdAt);
+                return (
+                    b.status === "confirmed" &&
+                    d.getMonth() === currentMonth &&
+                    d.getFullYear() === currentYear
+                );
+            })
+            .reduce((acc, b) => acc + (b.ownerPrice || b.price || 0), 0);
+
+        res.json({
+            success: true,
+            dashboardData: {
+                ownerName: owner.name,
+                ownerEmail: owner.email,
+                monthlyRevenue,
+            },
+        });
+    } catch (error) {
+        console.error("Error fetching dashboard data for owner:", error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+// ✅ Get Monthly Bookings for Owner (Include deleted bookings)
+export const getMonthlyBookings = async (req, res) => {
+    try {
+        const { _id, role } = req.user;
+        const { month, year } = req.query;
+
+        if (role !== "owner" && role !== "admin") {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
+
+        const targetMonth = parseInt(month) - 1;
+        const targetYear = parseInt(year);
+
+        // Start and end of the month
+        const startDate = new Date(targetYear, targetMonth, 1);
+        const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59);
+
+        // Find all cars owned by the current owner
+        const ownedCars = await Car.find({ owner: _id });
+        const ownedCarIds = ownedCars.map(car => car._id);
+
+        // Get ALL bookings for owner's cars within the selected month (including deleted ones)
+        const bookings = await Booking.find({
+            car: { $in: ownedCarIds },
+            createdAt: { $gte: startDate, $lte: endDate }
+        })
+        .populate('car', 'brand model category')
+        .populate('user', 'name email')
+        .sort({ createdAt: -1 });
+
+        // Filter out any null bookings (in case of deletion issues)
+        const validBookings = bookings.filter(booking => 
+            booking !== null && booking.car !== null && booking.user !== null
+        );
+
+        res.json({ 
+            success: true, 
+            bookings: validBookings,
+            message: `Found ${validBookings.length} bookings for selected month`
+        });
+    } catch (error) {
+        console.error("Error fetching monthly bookings:", error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// ✅ Get cars by owner ID (for main owner to view other owners' cars)
+export const getCarsByOwnerId = async (req, res) => {
+    try {
+        const { ownerId } = req.params;
+        const { email } = req.user;
+
+        // Allow only main owner to view other owners' cars
+        if (email !== MAIN_OWNER_EMAIL) {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
+
+        // Verify if the target owner exists
+        const owner = await User.findById(ownerId);
+        if (!owner) {
+            return res.status(404).json({ success: false, message: "Owner not found" });
+        }
+
+        // Get all cars owned by the specified owner
+        const cars = await Car.find({ owner: ownerId })
+            .populate('owner', 'name email') // Populate owner details
+            .sort({ createdAt: -1 });
+
+        res.json({ 
+            success: true, 
+            cars,
+            ownerInfo: {
+                name: owner.name,
+                email: owner.email,
+                totalCars: cars.length
+            }
+        });
+    } catch (error) {
+        console.error("Error fetching cars by owner ID:", error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+// ✅ Delete car by admin with REAL-TIME EMAIL NOTIFICATION + IMAGE
+export const deleteCarByAdmin = async (req, res) => {
+    try {
+        const { carId, reason } = req.body;
+        const { email } = req.user;
+
+        // Only main admin can delete
+        if (email !== MAIN_OWNER_EMAIL) {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
+
+        const car = await Car.findById(carId).populate('owner', 'name email');
+        if (!car) {
+            return res.status(404).json({ success: false, message: "Car not found" });
+        }
+
+        const ownerEmail = car.owner.email;
+        const ownerName = car.owner.name;
+        const carBrand = car.brand;
+        const carModel = car.model;
+        const carImage = car.image; // Image URL from ImageKit
+        const deleteReason = reason && reason.trim() ? reason : "Your car papers are not clear";
+
+        // Delete bookings & car
+        await Booking.deleteMany({ car: carId });
+        await Car.findByIdAndDelete(carId);
+
+        // ✅ SEND EMAIL WITH IMAGE TO VENDOR
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+                <h2 style="color: #d32f2f;">Your Car Has Been Removed</h2>
+                <p>Dear <strong>${ownerName}</strong>,</p>
+                <p>Unfortunately, your listed car has been removed from the platform by the admin.</p>
+                
+                <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin:20px 0;">
+                    <h3 style="margin:0 0 10px 0;">${carBrand} ${carModel}</h3>
+                    <img src="${carImage}" alt="${carBrand} ${carModel}" style="width:100%; max-width:500px; height:auto; border-radius:8px;" />
+                </div>
+                
+                <div style="background:#fff3cd; padding:15px; border-left:5px solid #ffc107; margin:20px 0;">
+                    <p style="margin:0; color:#856404; font-weight:bold;">Reason for deletion:</p>
+                    <p style="margin:10px 0 0 0; color:#856404;">${deleteReason.replace(/\n/g, '<br>')}</p>
+                </div>
+                
+                <p>If you have any questions, please contact support.</p>
+                <p>Thank you,<br><strong>Car Rental Admin Team</strong></p>
+            </div>
+        `;
+
+        await sendEmail(
+            ownerEmail,
+            `Your car "${carBrand} ${carModel}" has been removed`,
+            html
+        );
+
+        res.json({
+            success: true,
+            message: "Car deleted successfully and notification email sent to owner",
+        });
+    } catch (error) {
+        console.error("Error deleting car by admin:", error.message);
+        res.status(500).json({ success: false, message: error.message });
     }
 };

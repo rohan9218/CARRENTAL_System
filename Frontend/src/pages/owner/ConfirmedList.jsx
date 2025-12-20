@@ -11,9 +11,13 @@ const ConfirmedList = () => {
             try {
                 const { data } = await axios.get("/api/bookings/owner");
                 if (data.success) {
-                    // Filter confirmed bookings and ensure car exists
+                    // Filter confirmed bookings, ensure car exists, and check if return date hasn't passed
+                    const currentDate = new Date();
                     const filteredBookings = data.bookings.filter(
-                        (booking) => booking.car && booking.status === 'confirmed'
+                        (booking) => 
+                            booking.car && 
+                            booking.status === 'confirmed' &&
+                            new Date(booking.returnDate) >= currentDate
                     );
                     setConfirmed(filteredBookings);
                 } else {
@@ -38,10 +42,10 @@ const ConfirmedList = () => {
 
     return (
         <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6 text-gray-800">Confirmed Bookings</h1>
+            <h1 className="text-2xl font-bold mb-6 text-gray-800">Active Confirmed Bookings</h1>
 
             {confirmed.length === 0 ? (
-                <p className="text-gray-500 text-center py-10">No confirmed bookings</p>
+                <p className="text-gray-500 text-center py-10">No active confirmed bookings</p>
             ) : (
                 <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {confirmed.map((booking, index) => (
@@ -129,6 +133,14 @@ const ConfirmedList = () => {
                                 </p>
                             )}
 
+                            {/* Pickup Address */}
+                            {booking.withDriver && booking.userMobile && (
+                                <p className="mt-1 text-gray-600">
+                                    <span className="font-medium">Mobile Number:</span> {booking.userMobile}
+                                </p>
+                            )}
+
+
 
                             {/* ✅ Verification Code Display */}
                             {booking.verificationCode && (
@@ -149,6 +161,11 @@ const ConfirmedList = () => {
                             <p className="mt-1 text-gray-600">
                                 <span className="font-medium">Payment:</span>{" "}
                                 <span className="capitalize">{booking.paymentMode}</span>
+                            </p>
+
+                            {/* Today's Date */}
+                            <p className="mt-1 text-gray-600 font-medium">
+                                <span className="font-semibold">Today:</span> {today}
                             </p>
 
                             <p className="mt-1 text-gray-600">

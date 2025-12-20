@@ -2,9 +2,9 @@
 
 const TeamService = () => {
   const teamMembers = [
-    { name: 'Alex Carter', role: 'General Manager', image: '/vikas.jpeg', bio: 'Leads our team with a vision for exceptional service.' },
-    { name: 'Emma Wilson', role: 'Support Specialist', image: '/shreysh.jpeg', bio: 'Ensures every customer has a seamless experience.' },
-    { name: 'Liam Brown', role: 'Vehicle Manager', image: '/vishal.jpeg', bio: 'Keeps our fleet in top condition for your journey.' },
+    { name: 'Vikas Mane', role: 'General Manager', image: '/vikas.jpeg', bio: 'Leads our team with a vision for exceptional service.' },
+    { name: 'Shreyash Pisal', role: 'Support Specialist', image: '/shreysh.jpeg', bio: 'Ensures every customer has a seamless experience.' },
+    { name: 'Vishal More', role: 'Vehicle Manager', image: '/vishal.jpeg', bio: 'Keeps our fleet in top condition for your journey.' },
   ];
 
   const services = [
@@ -31,10 +31,10 @@ const TeamService = () => {
               >
 
                 <img
-  src={member.image}
-  alt={member.name}
-  className="w-40 h-40 mx-auto rounded-full object-cover border-4 border-white mt-5 shadow-lg"
-/>
+                  src={member.image}
+                  alt={member.name}
+                  className="w-40 h-40 mx-auto rounded-full object-cover border-4 border-white mt-5 shadow-lg"
+                />
 
 
 

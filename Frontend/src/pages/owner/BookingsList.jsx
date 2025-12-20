@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../../context/AppContext";
 
 // Backend base URL (use environment variable in production)
-const BACKEND_URL = "http://localhost:3000";
+const BACKEND_URL = VITE_API_BASE_URL;
 
 const BookingsList = () => {
     const { axios, isOwner, currency } = useAppContext();
@@ -18,8 +18,17 @@ const BookingsList = () => {
         try {
             const { data } = await axios.get("/api/owner/bookings");
             if (data.success) {
-                // Filter out bookings where the car is null or undefined
-                const filteredBookings = data.bookings.filter((booking) => booking.car);
+                // Filter out bookings where the car is null or undefined AND
+                // filter out bookings where return date has passed
+                const currentDate = new Date();
+                const filteredBookings = data.bookings.filter((booking) => {
+                    // Check if car exists
+                    if (!booking.car) return false;
+                    
+                    // Check if return date has passed
+                    const returnDate = new Date(booking.returnDate);
+                    return returnDate >= currentDate;
+                });
                 setBookings(filteredBookings);
             } else {
                 toast.error(data.message);
@@ -64,10 +73,10 @@ const BookingsList = () => {
 
     return (
         <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6 text-gray-800">All Bookings</h1>
+            <h1 className="text-2xl font-bold mb-6 text-gray-800">Active Bookings</h1>
 
             {bookings.length === 0 ? (
-                <p className="text-gray-500 text-center py-10">No bookings available.</p>
+                <p className="text-gray-500 text-center py-10">No active bookings available.</p>
             ) : (
                 <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {bookings.map((booking, index) => (
@@ -101,15 +110,27 @@ const BookingsList = () => {
                                 </p>
                             )}
 
-
-                            {booking.createdAt && (
+                            {/* Booking Dates */}
+                            {booking.pickupDate && (
                                 <p className="mt-1 text-gray-600">
-                                    <span className="font-medium">Date:</span>{" "}
-                                    {new Date(booking.createdAt).toLocaleDateString()}
+                                    <span className="font-medium">Pickup:</span>{" "}
+                                    {new Date(booking.pickupDate).toLocaleDateString()}
                                 </p>
                             )}
 
+                            {booking.returnDate && (
+                                <p className="mt-1 text-gray-600">
+                                    <span className="font-medium">Return:</span>{" "}
+                                    {new Date(booking.returnDate).toLocaleDateString()}
+                                </p>
+                            )}
 
+                            {booking.createdAt && (
+                                <p className="mt-1 text-gray-600">
+                                    <span className="font-medium">Booking Date:</span>{" "}
+                                    {new Date(booking.createdAt).toLocaleDateString()}
+                                </p>
+                            )}
 
                             <p className="mt-1 text-gray-600">
                                 <span className="font-medium">Price:</span>{" "}
@@ -148,7 +169,7 @@ const BookingsList = () => {
 
                             {/* Today's date below Transmission */}
                             <p className="mt-1 text-gray-600 font-medium">
-                                <span className="font-semibold">Date:</span> {today}
+                                <span className="font-semibold">Today:</span> {today}
                             </p>
 
                             <p className="mt-1 text-gray-600">

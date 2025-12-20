@@ -1,15 +1,27 @@
 import express from "express";
-import { forgotPassword, getCars, getUserData, loginUser, registerUser, resetPassword, updateProfile } from "../controllers/userController.js";
+import {
+    forgotPassword,
+    getCars,
+    getUserData,
+    loginUser,
+    registerUser,
+    resetPassword,
+    sendSignupOtp,
+    updateProfile,
+    verifySignupOtp
+} from "../controllers/userController.js";
 import { protect } from "../middleware/auth.js";
 import upload from "../middleware/multer.js";
 
 const userRouter = express.Router();
 
-userRouter.post('/register',registerUser)
-userRouter.post('/login',loginUser)
+userRouter.post('/send-signup-otp', sendSignupOtp);
+userRouter.post('/verify-signup-otp', verifySignupOtp);
+userRouter.post('/register', registerUser);
+userRouter.post('/login', loginUser);
 
-userRouter.get('/data',protect,getUserData)
-userRouter.get('/cars',getCars)
+userRouter.get('/data', protect, getUserData);
+userRouter.get('/cars', getCars);
 
 userRouter.post("/forgot-password", forgotPassword);
 userRouter.post("/reset-password", resetPassword);

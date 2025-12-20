@@ -1,20 +1,23 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import toast from "react-hot-toast"; // ✅ import toast
-import { FiLock, FiMail } from "react-icons/fi"; // ✅ added icons
+import toast from "react-hot-toast";
+import { FiLock, FiMail, FiRefreshCw } from "react-icons/fi";
 import { useAppContext } from "../context/AppContext";
 
 const Login = () => {
     const { setShowLogin, axios, setToken, navigate } = useAppContext();
 
-    const [state, setState] = useState("login"); // login | register | forgot | verifyOtp
+    const [state, setState] = useState("login");
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [otp, setOtp] = useState("");
     const [newPassword, setNewPassword] = useState("");
+    const [signupOtp, setSignupOtp] = useState("");
+    const [isSendingOtp, setIsSendingOtp] = useState(false);
+    const [isOtpVerified, setIsOtpVerified] = useState(false);
+    const [showOtpField, setShowOtpField] = useState(false);
 
-    // ✅ error messages for password
     const [passwordError, setPasswordError] = useState("");
     const [newPasswordError, setNewPasswordError] = useState("");
 
@@ -30,19 +33,112 @@ const Login = () => {
         return "";
     };
 
+    // ✅ Send OTP for email verification during signup
+    const sendSignupOtp = async () => {
+        if (!name || !email) {
+            toast.error("Please enter both name and email");
+            return;
+        }
+
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            toast.error("Please enter a valid email address");
+            return;
+        }
+
+        setIsSendingOtp(true);
+        try {
+            const { data } = await axios.post("/api/user/send-signup-otp", { 
+                email, 
+                name 
+            });
+            
+            if (data.success) {
+                toast.success("OTP sent to your email");
+                setShowOtpField(true);
+            } else {
+                toast.error(data.message || "Failed to send OTP");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to send OTP. Please try again.");
+        } finally {
+            setIsSendingOtp(false);
+        }
+    };
+
+    // ✅ Verify OTP for signup
+    const verifySignupOtp = async () => {
+        if (!signupOtp || signupOtp.length !== 6) {
+            toast.error("Please enter a valid 6-digit OTP");
+            return;
+        }
+
+        try {
+            const { data } = await axios.post("/api/user/verify-signup-otp", { 
+                email, 
+                otp: signupOtp 
+            });
+            
+            if (data.success) {
+                toast.success("Email verified successfully!");
+                setIsOtpVerified(true);
+            } else {
+                toast.error(data.message || "Invalid OTP");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to verify OTP");
+        }
+    };
+
     const onSubmitHandler = async (event) => {
         event.preventDefault();
 
-        // Prevent submit if password invalid
-        if (state === "register" && passwordError) return;
+        if (state === "register") {
+            if (!isOtpVerified) {
+                // First verify OTP
+                await verifySignupOtp();
+                return;
+            }
+
+            if (passwordError) return;
+            
+            // Create account after OTP verification
+            try {
+                const { data } = await axios.post(`/api/user/register`, {
+                    name,
+                    email,
+                    password,
+                });
+
+                if (data.success) {
+                    setToken(data.token);
+                    localStorage.setItem("token", data.token);
+                    navigate("/");
+                    setShowLogin(false);
+                    toast.success("Account created successfully!");
+                } else {
+                    toast.error(data.message || "Failed to create account");
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error("Something went wrong, please try again later");
+            }
+            return;
+        }
+
         if (state === "verifyOtp" && newPasswordError) return;
 
         try {
             if (state === "forgot") {
                 const { data } = await axios.post("/api/user/forgot-password", { email });
                 if (data.success) {
-                    toast.success(data.message); // ✅ show popup when OTP sent
+                    toast.success(data.message);
                     setState("verifyOtp");
+                } else {
+                    toast.error(data.message || "Something went wrong");
                 }
                 return;
             }
@@ -59,13 +155,15 @@ const Login = () => {
                     setPassword("");
                     setOtp("");
                     setNewPassword("");
-                    toast.success(data.message); // ✅ show popup when password reset
+                    toast.success(data.message);
+                } else {
+                    toast.error(data.message || "Invalid OTP or password");
                 }
                 return;
             }
 
-            const { data } = await axios.post(`/api/user/${state}`, {
-                name: state === "register" ? name : undefined,
+            // Login
+            const { data } = await axios.post(`/api/user/login`, {
                 email,
                 password,
             });
@@ -75,11 +173,25 @@ const Login = () => {
                 localStorage.setItem("token", data.token);
                 navigate("/");
                 setShowLogin(false);
-                toast.success("Login successful"); // ✅ success popup
+                toast.success("Login successful");
+            } else {
+                toast.error(data.message || "Invalid credentials, please try again");
             }
         } catch (error) {
             console.error(error);
+            toast.error("Something went wrong, please try again later");
         }
+    };
+
+    // ✅ Reset signup form
+    const resetSignupForm = () => {
+        setName("");
+        setEmail("");
+        setPassword("");
+        setSignupOtp("");
+        setIsOtpVerified(false);
+        setShowOtpField(false);
+        setPasswordError("");
     };
 
     return (
@@ -118,31 +230,156 @@ const Login = () => {
                     </p>
 
                     {state === "register" && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="flex items-center w-full mt-10 bg-white border border-gray-300/80 h-12 rounded-full overflow-hidden pl-6"
-                        >
-                            <input
-                                type="text"
-                                placeholder="Full Name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="bg-transparent text-gray-500 outline-none text-sm w-full h-full"
-                                required
-                            />
-                        </motion.div>
+                        <>
+                            {/* Name Field */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 }}
+                                className="flex items-center w-full mt-10 bg-white border border-gray-300/80 h-12 rounded-full overflow-hidden pl-6"
+                            >
+                                <input
+                                    type="text"
+                                    placeholder="Full Name"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="bg-transparent text-gray-500 outline-none text-sm w-full h-full"
+                                    required
+                                    disabled={isOtpVerified}
+                                />
+                            </motion.div>
+
+                            {/* Email Field */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.15 }}
+                                className="flex items-center w-full mt-6 bg-white border border-gray-300/80 h-12 rounded-full overflow-hidden pl-6 gap-2"
+                            >
+                                <FiMail className="text-gray-400 text-lg" />
+                                <input
+                                    type="email"
+                                    placeholder="Email id"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="bg-transparent text-gray-500 outline-none text-sm w-full h-full"
+                                    required
+                                    disabled={isOtpVerified}
+                                />
+                            </motion.div>
+
+                            {/* Send OTP Button - Only show if OTP not verified */}
+                            {!isOtpVerified && (
+                                <button
+                                    type="button"
+                                    onClick={sendSignupOtp}
+                                    disabled={isSendingOtp || !name || !email || showOtpField}
+                                    className={`mt-4 w-full h-11 rounded-full text-white ${isSendingOtp || !name || !email || showOtpField ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:opacity-90'} transition-opacity flex items-center justify-center gap-2`}
+                                >
+                                    {isSendingOtp ? (
+                                        <>
+                                            <FiRefreshCw className="animate-spin" />
+                                            Sending OTP...
+                                        </>
+                                    ) : (
+                                        "Send OTP"
+                                    )}
+                                </button>
+                            )}
+
+                            {/* OTP Input Field - Show after Send OTP is clicked */}
+                            {!isOtpVerified && showOtpField && (
+                                <>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.2 }}
+                                        className="mt-4 w-full"
+                                    >
+                                        <div className="flex items-center w-full bg-white border border-gray-300/80 h-12 rounded-full overflow-hidden pl-6">
+                                            <input
+                                                type="text"
+                                                placeholder="Enter 6-digit OTP"
+                                                value={signupOtp}
+                                                onChange={(e) => setSignupOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                className="bg-transparent text-gray-500 outline-none text-sm w-full h-full text-center tracking-widest"
+                                                maxLength={6}
+                                                required
+                                            />
+                                        </div>
+                                        <p className="text-gray-500 text-xs mt-2 text-center">
+                                            OTP sent to {email}
+                                        </p>
+                                    </motion.div>
+
+                                    {/* Resend OTP Link */}
+                                    <div className="mt-2 text-center">
+                                        <span
+                                            className="text-primary text-sm cursor-pointer"
+                                            onClick={sendSignupOtp}
+                                        >
+                                            Resend OTP
+                                        </span>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Password Field - Only shown after OTP verification */}
+                            {isOtpVerified && (
+                                <>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.2 }}
+                                        className="mt-6 w-full"
+                                    >
+                                        <div className="flex items-center w-full bg-white border border-green-500/50 h-12 rounded-full overflow-hidden pl-6 gap-2">
+                                            <FiLock className="text-green-500 text-lg" />
+                                            <input
+                                                type="password"
+                                                placeholder="Create Password"
+                                                value={password}
+                                                onChange={(e) => {
+                                                    setPassword(e.target.value);
+                                                    setPasswordError(validatePassword(e.target.value));
+                                                }}
+                                                className="bg-transparent text-gray-500 outline-none text-sm w-full h-full"
+                                                required
+                                            />
+                                        </div>
+                                        {passwordError && (
+                                            <p className="text-red-500 text-xs text-left mt-1 ml-6">{passwordError}</p>
+                                        )}
+                                        <p className="text-green-600 text-xs mt-2 text-left ml-6 flex items-center gap-1">
+                                            <span className="text-green-500">✓</span> Email verified successfully
+                                        </p>
+                                    </motion.div>
+
+                                    {/* Edit Email Link */}
+                                    <div className="mt-2 text-center">
+                                        <span
+                                            className="text-primary text-sm cursor-pointer"
+                                            onClick={() => {
+                                                setIsOtpVerified(false);
+                                                setShowOtpField(false);
+                                                setSignupOtp("");
+                                            }}
+                                        >
+                                            Use different email
+                                        </span>
+                                    </div>
+                                </>
+                            )}
+                        </>
                     )}
 
-                    {(state === "login" || state === "register" || state === "forgot" || state === "verifyOtp") && (
+                    {(state === "login" || state === "forgot" || state === "verifyOtp") && (
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.15 }}
                             className="flex items-center w-full mt-6 bg-white border border-gray-300/80 h-12 rounded-full overflow-hidden pl-6 gap-2"
                         >
-                            {/* ✅ Email Icon */}
                             <FiMail className="text-gray-400 text-lg" />
                             <input
                                 type="email"
@@ -155,7 +392,7 @@ const Login = () => {
                         </motion.div>
                     )}
 
-                    {(state === "login" || state === "register") && (
+                    {state === "login" && (
                         <div className="mt-4 w-full">
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
@@ -163,7 +400,6 @@ const Login = () => {
                                 transition={{ delay: 0.2 }}
                                 className="flex items-center w-full bg-white border border-gray-300/80 h-12 rounded-full overflow-hidden pl-6 gap-2"
                             >
-                                {/* ✅ Password Icon */}
                                 <FiLock className="text-gray-400 text-lg" />
                                 <input
                                     type="password"
@@ -177,9 +413,6 @@ const Login = () => {
                                     required
                                 />
                             </motion.div>
-                            {state === "register" && passwordError && (
-                                <p className="text-red-500 text-xs text-left mt-1">{passwordError}</p>
-                            )}
                         </div>
                     )}
 
@@ -207,7 +440,6 @@ const Login = () => {
                                     transition={{ delay: 0.3 }}
                                     className="flex items-center w-full bg-white border border-gray-300/80 h-12 rounded-full overflow-hidden pl-6 gap-2"
                                 >
-                                    {/* ✅ Password Icon */}
                                     <FiLock className="text-gray-400 text-lg" />
                                     <input
                                         type="password"
@@ -244,17 +476,23 @@ const Login = () => {
                             Already have an account?{" "}
                             <span
                                 className="text-primary cursor-pointer"
-                                onClick={() => setState("login")}
+                                onClick={() => {
+                                    setState("login");
+                                    resetSignupForm();
+                                }}
                             >
                                 Login
                             </span>
                         </p>
                     ) : state === "login" ? (
                         <p className="text-gray-500 text-sm mt-3 mb-11">
-                            Don’t have an account?{" "}
+                            Don't have an account?{" "}
                             <span
                                 className="text-primary cursor-pointer"
-                                onClick={() => setState("register")}
+                                onClick={() => {
+                                    setState("register");
+                                    resetSignupForm();
+                                }}
                             >
                                 Sign up
                             </span>
@@ -265,10 +503,11 @@ const Login = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         type="submit"
-                        className="mt-2 w-full h-11 rounded-full text-white bg-primary hover:opacity-90 transition-opacity mb-10"
+                        className={`mt-2 w-full h-11 rounded-full text-white ${state === "register" && !isOtpVerified && signupOtp.length !== 6 ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:opacity-90'} transition-opacity mb-10`}
+                        disabled={state === "register" && !isOtpVerified && signupOtp.length !== 6}
                     >
                         {state === "register"
-                            ? "Create Account"
+                            ? isOtpVerified ? "Create Account" : "Verify OTP"
                             : state === "login"
                             ? "Login"
                             : state === "forgot"

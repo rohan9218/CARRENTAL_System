@@ -13,6 +13,7 @@ import carIconColored from "./carIconColored.svg";
 import cautionIconColored from "./cautionIconColored.svg";
 import check_icon from "./check_icon.svg";
 import close_icon from "./close_icon.svg";
+import contactus from "./contactus.svg";
 import customer_service from "./customer_service.svg";
 import dashboardIcon from "./dashboardIcon.svg";
 import dashboardIconColored from "./dashboardIconColored.svg";
@@ -46,6 +47,7 @@ import upload_icon from "./upload_icon.svg";
 import user_icon from "./user_icon.svg";
 import user_profile from "./user_profile.png";
 import users_icon from "./users_icon.svg";
+
 
 export const cityList = ['Sangli', 'Vishrambag', 'Madhavnagar', 'Miraj']
 
@@ -95,7 +97,7 @@ export const assets = {
     car_image4,
     mic_icon,
     edit_icon_1, user_icon,
-    owner,feedback
+    owner,feedback,contactus
 }
 
 export const menuLinks = [
@@ -103,18 +105,16 @@ export const menuLinks = [
     { name: "Cars", path: "/cars" },
     { name: "My Bookings", path: "/my-bookings" },
 ]
-
 export const ownerMenuLinks = [
     { name: "Dashboard", path: "/owner", icon: dashboardIcon, coloredIcon: dashboardIconColored },
     { name: "Add car", path: "/owner/add-car", icon: addIcon, coloredIcon: addIconColored },
     { name: "Manage Cars", path: "/owner/manage-cars", icon: carIcon, coloredIcon: carIconColored },
     { name: "Manage Bookings", path: "/owner/manage-bookings", icon: listIcon, coloredIcon: listIconColored },
     { name: "Feedback", path: "/owner/feedbacks", icon: feedback },
-    { name: "Customers", path: "/owner/customers", icon:customer_service  },
-    { name: "Owners", path: "/owner/owners",icon:owner  },
-
+    { name: "Contact Us", path: "/owner/contact-us", icon: contactus }, // Added Contact Us
+    { name: "Customers", path: "/owner/customers", icon: customer_service },
+    { name: "Vendor", path: "/owner/owners", icon: owner },
 ]
-
 export const dummyUserData = {
     "_id": "6847f7cab3d8daecdb517095",
     "name": "GreatStack",

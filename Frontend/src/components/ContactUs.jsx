@@ -2,6 +2,9 @@ import { motion } from "framer-motion";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { useState } from "react";
 
+
+const API_BASE_URL = import.meta.env.VITE_BASE_URL;
+
 const ContactUs = () => {
     const [formData, setFormData] = useState({ name: "", email: "", message: "" });
     const [status, setStatus] = useState("");
@@ -16,7 +19,7 @@ const ContactUs = () => {
         setStatus("Sending...");
 
         try {
-            const response = await fetch("http://localhost:3000/api/contact", {
+            const response = await fetch(`${API_BASE_URL}/api/contact`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
@@ -34,7 +37,7 @@ const ContactUs = () => {
     };
 
     return (
-        <div 
+        <div
             className="relative flex items-center justify-center min-h-screen overflow-hidden bg-cover bg-center"
             style={{ backgroundImage: "url('https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1600&q=80')" }}  // ✅ Add your car image path here
         >
@@ -110,7 +113,7 @@ const ContactUs = () => {
                             transition={{ delay: 0.9, duration: 0.8 }}
                             className="flex items-center gap-3"
                         >
-                            <MapPin className="text-yellow-300 w-6 h-6" /> <span>123 Main St, New York</span>
+                            <MapPin className="text-yellow-300 w-6 h-6" /> <span>123 College Corner, Sangli</span>
                         </motion.div>
                     </div>
                 </div>

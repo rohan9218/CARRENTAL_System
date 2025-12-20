@@ -16,6 +16,7 @@ import BookingsList from "./pages/owner/BookingsList";
 import CarsList from "./pages/owner/CarsList";
 import CommissionStats from "./pages/owner/CommissionStats";
 import ConfirmedList from "./pages/owner/ConfirmedList";
+import ContactUsPage from "./pages/owner/ContactUsPage";
 import CustomerList from "./pages/owner/CustomerList";
 import Dashboard from "./pages/owner/Dashboard";
 import Layout from "./pages/owner/Layout";
@@ -28,6 +29,7 @@ import PendingList from "./pages/owner/PendingList";
 import Profile from "./pages/Profile"; // ✅ Import Profile
 import UpdateBooking from "./pages/UpdateBooking";
 import HelpCenter from "./resources/HelpCenter";
+import PrivacyPolicy from "./resources/PrivacyPolicy";
 import TeamService from "./resources/TeamService";
 
 const App = () => {
@@ -51,7 +53,7 @@ const App = () => {
 
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<ContactUs />} />
-      
+
         <Route path="/feedback" element={<FeedbackForm />} />
         <Route path="/owner/feedbacks" element={<OwnerFeedbacks />} />
 
@@ -64,7 +66,7 @@ const App = () => {
 
         <Route path="/owner/monthly-revenue" element={<MonthlyRevenue />} />
         <Route path="/owner/commission-stats" element={<CommissionStats />} />
-
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
         <Route path="/owner" element={<Layout />}>
           <Route index element={<Dashboard />} /> {/* Default route for /owner */}
@@ -78,6 +80,9 @@ const App = () => {
           <Route path="bookings" element={<BookingsList />} />
           <Route path="bookings/pending" element={<PendingList />} />
           <Route path="bookings/confirmed" element={<ConfirmedList />} />
+
+          // In your owner routes section, add:
+<Route path="/owner/contact-us" element={<ContactUsPage />} />
 
           {/* ✅ New Routes */}
           <Route path="customers" element={<CustomerList />} />

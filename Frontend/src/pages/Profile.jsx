@@ -77,14 +77,14 @@ const Profile = () => {
                     <h1 className="mt-4 text-2xl font-bold text-gray-800">{user.name}</h1>
                     <p className="text-gray-500 text-sm">{user.email}</p>
 
-                    <span
+                    {/*   <span
                         className={`mt-3 inline-block px-4 py-1 rounded-full text-sm font-semibold ${user.isOwner
                             ? "bg-yellow-100 text-yellow-800"
                             : "bg-green-100 text-green-800"
                             }`}
                     >
                         {user.isOwner ? "Owner" : "Customer"}
-                    </span>
+                    </span>*/}
                 </motion.div>
 
                 {/* RIGHT SIDE */}

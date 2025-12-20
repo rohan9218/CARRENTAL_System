@@ -12,6 +12,7 @@ const bookingSchema = new mongoose.Schema({
     ownerPrice: { type: Number, required: true },
     withDriver: { type: Boolean, default: false },
     userAddress: { type: String, default: "" },
+    userMobile: { type: String, default: "" }, // ✅ Added mobile number field
     idProof: { type: String },
     commission: { type: Number, default: 0 },
     paymentMode: { type: String, enum: ['cash', 'online'], default: 'cash' },

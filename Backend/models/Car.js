@@ -6,6 +6,7 @@ const carSchema = new mongoose.Schema({
     brand: { type: String, required: true },
     model: { type: String, required: true },
     image: { type: String, required: true },
+    insurancePaper: { type: String, required: true }, // ✅ Added insurance paper field
     year: { type: Number, required: true },
     category: { type: String, required: true },
     seating_capacity: { type: Number, required: true },

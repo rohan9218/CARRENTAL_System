@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { useState } from "react";
 import { FaCar, FaCreditCard, FaHeadset, FaUser } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const topics = [
   { title: "Booking Help", desc: "Quick guide to book your car hassle-free.", icon: <FaCar size={28} /> },
@@ -19,6 +20,7 @@ const faqData = [
 
 const HelpCenter = () => {
   const [activeFAQ, setActiveFAQ] = useState(null);
+  const navigate = useNavigate();
 
   return (
     <div className="bg-gray-50 text-gray-800 min-h-screen">
@@ -86,7 +88,7 @@ const HelpCenter = () => {
           Contact our support team and we’ll get back to you as soon as possible.
         </p>
         <button
-          onClick={() => window.location.href = "mailto:support@carrental.com"}
+          onClick={() => navigate("/teamservice")}
           className="bg-indigo-600 text-white px-10 py-4 rounded-full font-semibold shadow-lg hover:bg-indigo-700 transition"
         >
           Contact Support

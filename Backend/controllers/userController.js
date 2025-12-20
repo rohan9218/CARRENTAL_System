@@ -12,6 +12,82 @@ const generateToken = (userId) => {
 
 // Temporary store (in production use Redis/DB)
 let otpStore = {};
+let signupOtpStore = {};
+
+// Send OTP for signup email verification
+export const sendSignupOtp = async (req, res) => {
+    try {
+        const { email, name } = req.body;
+        if (!email || !name) return res.json({ success: false, message: "Email and name required" });
+
+        // Check if user already exists
+        const userExists = await User.findOne({ email });
+        if (userExists) {
+            return res.json({ success: false, message: 'User already exists with this email' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        signupOtpStore[email] = {
+            otp,
+            name,
+            timestamp: Date.now()
+        };
+
+        // Send email via nodemailer
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: "Email Verification OTP - Car Rental App",
+            text: `Hello ${name},\n\nYour email verification OTP is: ${otp}\n\nThis OTP will expire in 10 minutes.\n\nIf you didn't request this, please ignore this email.\n\nBest regards,\nCar Rental App Team`,
+        });
+
+        res.json({ success: true, message: "OTP sent to email" });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// Verify OTP for signup
+export const verifySignupOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!signupOtpStore[email]) {
+            return res.json({ success: false, message: "No OTP generated for this email" });
+        }
+
+        // Check OTP expiration (10 minutes)
+        const currentTime = Date.now();
+        const otpAge = currentTime - signupOtpStore[email].timestamp;
+        const expirationTime = 10 * 60 * 1000; // 10 minutes
+
+        if (otpAge > expirationTime) {
+            delete signupOtpStore[email];
+            return res.json({ success: false, message: "OTP has expired. Please request a new one." });
+        }
+
+        if (signupOtpStore[email].otp !== otp) {
+            return res.json({ success: false, message: "Invalid OTP, please enter a valid one" });
+        }
+
+        // Mark OTP as verified
+        signupOtpStore[email].verified = true;
+
+        res.json({ success: true, message: "Email verified successfully" });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};
 
 // Forgot Password - Send OTP
 export const forgotPassword = async (req, res) => {
@@ -93,6 +169,11 @@ export const registerUser = async (req, res) => {
             return res.json({ success: false, message: 'Fill all the fields' });
         }
 
+        // Check if email was verified via OTP
+        if (!signupOtpStore[email] || !signupOtpStore[email].verified) {
+            return res.json({ success: false, message: 'Email not verified. Please verify your email first.' });
+        }
+
         // ✅ Strong Password Validation
         const passwordRegex =
             /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
@@ -112,6 +193,10 @@ export const registerUser = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = await User.create({ name, email, password: hashedPassword });
+        
+        // Clear signup OTP store after successful registration
+        delete signupOtpStore[email];
+        
         const token = generateToken(user._id.toString());
         res.json({ success: true, token });
 

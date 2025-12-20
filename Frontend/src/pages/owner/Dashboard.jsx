@@ -9,6 +9,9 @@ const Dashboard = () => {
   const { axios, isOwner, currency, user, loading } = useAppContext();
   const navigate = useNavigate();
 
+  // ✅ MAIN OWNER EMAIL FROM .env
+  const MAIN_OWNER_EMAIL = import.meta.env.VITE_MAIN_OWNER_EMAIL;
+
   const [data, setData] = useState({
     totalCars: 0,
     totalBookings: 0,
@@ -30,12 +33,36 @@ const Dashboard = () => {
     try {
       const { data: res } = await axios.get("/api/owner/dashboard");
       if (res.success) {
+        const currentDate = new Date();
+
         const filteredRecentBookings = res.dashboardData.recentBookings.filter(
-          (booking) => booking.car
+          (booking) => {
+            if (!booking.car) return false;
+            const returnDate = new Date(booking.returnDate);
+            return returnDate >= currentDate;
+          }
         );
+
+        const allBookings = res.dashboardData.recentBookings || [];
+        const activeBookings = allBookings.filter((booking) => {
+          if (!booking.car) return false;
+          const returnDate = new Date(booking.returnDate);
+          return returnDate >= currentDate;
+        });
+
+        const pendingBookings = activeBookings.filter(
+          (b) => b.status && b.status.toLowerCase() === "pending"
+        );
+        const completedBookings = activeBookings.filter(
+          (b) => b.status && b.status.toLowerCase() === "confirmed"
+        );
+
         setData({
           ...res.dashboardData,
           recentBookings: filteredRecentBookings,
+          totalBookings: activeBookings.length,
+          pendingBookings: pendingBookings.length,
+          completedBookings: completedBookings.length,
         });
       } else {
         toast.error(res.message);
@@ -92,10 +119,10 @@ const Dashboard = () => {
         {/* Recent bookings */}
         <div className="p-4 md:p-6 border border-borderColor rounded-md max-w-lg w-full">
           <h1 className="text-lg font-medium">Recent Bookings</h1>
-          <p className="text-gray-500">Latest customer bookings</p>
+          <p className="text-gray-500">Current and upcoming customer bookings</p>
 
           {data.recentBookings.length === 0 && (
-            <p className="text-sm text-gray-400 mt-4">No recent bookings</p>
+            <p className="text-sm text-gray-400 mt-4">No active bookings</p>
           )}
 
           {data.recentBookings.map((booking, index) => (
@@ -107,7 +134,7 @@ const Dashboard = () => {
                 <div>
                   <p>{booking.car?.brand || "Unknown"} {booking.car?.model || ""}</p>
                   <p className="text-sm text-gray-500">
-                    {booking.createdAt ? booking.createdAt.split("T")[0] : "N/A"}
+                    Return: {booking.returnDate ? new Date(booking.returnDate).toLocaleDateString() : "N/A"}
                   </p>
                 </div>
               </div>
@@ -123,7 +150,6 @@ const Dashboard = () => {
 
         {/* Monthly revenue + Commission */}
         <div className="flex flex-col gap-6 w-full md:max-w-xs">
-          {/* ✅ Monthly revenue box navigates to graph page */}
           <div
             onClick={() => navigate("/owner/monthly-revenue")}
             className="p-4 md:p-6 border border-borderColor rounded-md cursor-pointer hover:shadow-md transition"
@@ -135,8 +161,8 @@ const Dashboard = () => {
             </p>
           </div>
 
-          {/* Commission Box only for specific owner */}
-          {user?.email === "rohandesai9218@gmail.com" && (
+          {/* ✅ Commission Box (ENV BASED CHECK) */}
+          {user?.email === MAIN_OWNER_EMAIL && (
             <div
               onClick={() => navigate("/owner/commission-stats")}
               className="p-4 md:p-6 border border-borderColor rounded-md cursor-pointer hover:shadow-md transition"
@@ -148,7 +174,6 @@ const Dashboard = () => {
               </p>
             </div>
           )}
-
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ import connectDB from './configs/db.js';
 import bookingRouter from './routes/bookingRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import feedbackRoutes from "./routes/feedbackRoutes.js";
+import newsletterRouter from './routes/newsletterRouter.js';
 import ownerRouter from './routes/ownerRoutes.js';
 import paymentRouter from "./routes/paymentRouter.js";
 import userRouter from './routes/userRoutes.js';
@@ -32,6 +33,7 @@ app.use('/api/owner',ownerRouter)
 app.use('/api/bookings',bookingRouter)
 app.use("/api/contact", contactRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/newsletter", newsletterRouter);
 
 app.use("/api/payments", paymentRouter);
 

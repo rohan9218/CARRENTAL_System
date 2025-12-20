@@ -27,11 +27,13 @@ const AddCar = () => {
     seating_capacity: "",
     location: "",
     description: "",
+    insurancePaper: "", // ✅ Added insurance paper field
   }
 
   const [image, setImage] = useState(null)
-  const [car, setCar] = useState(emptyCar)
+  const [insurancePaper, setInsurancePaper] = useState(null) // ✅ Added insurance paper state
   const [isLoading, setIsLoading] = useState(false)
+  const [car, setCar] = useState(emptyCar)
 
   // Fetch car details if editing
   useEffect(() => {
@@ -129,13 +131,14 @@ const AddCar = () => {
     if (isLoading) return
 
     if (!id && !image) return toast.error("Please upload a car image")
+    if (!id && !insurancePaper) return toast.error("Please upload insurance paper") // ✅ Added validation
     if (car.year < 1900 || car.year > new Date().getFullYear()) {
       return toast.error("Enter a valid year")
     }
     if (car.pricePerDay <= 0) return toast.error("Price must be greater than 0")
     if (car.seating_capacity <= 0) return toast.error("Seating capacity must be greater than 0")
 
-    if (!id && user?.email !== "rohandesai9218@gmail.com") {
+    if (!id && user?.email !== MAIN_OWNER_EMAIL) {
       const confirm = window.confirm(
         "If you add cars into this site, you will give 20% commission.\n\nPress OK to continue or Cancel to abort."
       )
@@ -146,6 +149,7 @@ const AddCar = () => {
     try {
       const formData = new FormData()
       if (image) formData.append("image", image)
+      if (insurancePaper) formData.append("insurancePaper", insurancePaper) // ✅ Added insurance paper
       formData.append("carData", JSON.stringify(car))
 
       let data
@@ -177,9 +181,30 @@ const AddCar = () => {
         subTitle={
           id
             ? "Modify details of your listed car."
-            : "Upload a car image and we’ll auto-fill the details."
+            : "Upload a car image and we'll auto-fill the details. Insurance document is mandatory."
         }
       />
+
+      {/* ✅ Insurance Requirement Notice 
+      {!id && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-blue-800 mb-1">Insurance Requirement</h3>
+              <p className="text-sm text-blue-700">
+                Your car must have <strong>full comprehensive insurance</strong>. Cars without proper insurance will be rejected by admin.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      */}
+
 
       <form
         onSubmit={onSubmitHandler}
@@ -298,6 +323,43 @@ const AddCar = () => {
               placeholder="4"
               required
             />
+          </div>
+
+          {/* Insurance Paper Upload Field - Placed before Location */}
+          <div className="flex flex-col">
+            <label className="flex items-center gap-2">
+              Insurance Paper
+              <span className="text-red-500">*</span>
+            {/* {!id && (
+                <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">Required</span>
+              )}
+                */}
+            </label>
+            <div className="flex items-center gap-3 mt-1">
+              <label htmlFor="insurance-file" className="cursor-pointer flex-1">
+                <div className="px-3 py-2 border rounded-md bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <span className="text-sm text-gray-600">
+                    {insurancePaper ? insurancePaper.name : car.insurancePaper ? "Change File" : "Choose Insurance File"}
+                  </span>
+                </div>
+                <input
+                  type="file"
+                  id="insurance-file"
+                  accept="image/*,.pdf,.doc,.docx"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files[0]
+                    if (file) {
+                      setInsurancePaper(file)
+                    }
+                  }}
+                />
+              </label>
+              {insurancePaper && (
+                <span className="text-xs text-green-600">✓ Selected</span>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Upload insurance document (Image, PDF, DOC) - Mandatory for new listings</p>
           </div>
 
           <div className="flex flex-col">

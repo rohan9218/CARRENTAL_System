@@ -63,8 +63,8 @@ const Footer = () => {
                         <h2 className='text-base font-medium  text-gray-800 uppercase'>Quick Links</h2>
                         <ul className='mt-3 flex flex-col gap-1.5'>
                             <li><a href="#">Home</a></li>
-                            <li><a href="#">Browse Cars</a></li>
-                            <li><a href="#">List Your Car</a></li>
+                            <li><a href="/cars">Browse Cars</a></li>
+                            <li><a href="/cars">List Your Car</a></li>
                             <li><a href="/about">About Us</a></li>
                         </ul>
                     </div>
@@ -73,7 +73,7 @@ const Footer = () => {
                         <ul className='mt-3 flex flex-col gap-1.5'>
                             <li><a href="/helpcenter">Help Center</a></li>
                             <li><a href="/teamservice">Terms of Service</a></li>
-                            <li><a href="#">Privacy Policy</a></li>
+                            <li><a href="/privacy-policy">Privacy Policy</a></li>
                             <li><a href="#">Insurance</a></li>
                         </ul>
                     </div>
@@ -81,9 +81,9 @@ const Footer = () => {
                         <h2 className='text-base font-medium  text-gray-800 uppercase'>Contact</h2>
                         <ul className='mt-3 flex flex-col gap-1.5'>
                             <li>1234 Luxury Drive</li>
-                            <li>Sen Francisco, CA 94107</li>
-                            <li>+1 234 567890</li>
-                            <li>info@example.com</li>
+                            <li>College Corner near, Sangli</li>
+                            <li>+91 8766484845</li>
+                            <li>rohandesai9218@gmail.com.com</li>
                         </ul>
                     </div>
                 </motion.div>

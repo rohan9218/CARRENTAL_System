@@ -11,9 +11,12 @@ const PendingList = () => {
             try {
                 const { data } = await axios.get("/api/owner/bookings/pending");
                 if (data.success) {
-                    // Filter out bookings where the car is null or undefined
+                    // Filter out bookings where the car is null or undefined AND return date hasn't passed
+                    const currentDate = new Date();
                     const filteredBookings = data.bookings.filter(
-                        (booking) => booking.car
+                        (booking) => 
+                            booking.car && 
+                            new Date(booking.returnDate) >= currentDate
                     );
                     setPending(filteredBookings);
                 } else {
@@ -38,10 +41,10 @@ const PendingList = () => {
 
     return (
         <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6 text-gray-800">Pending Bookings</h1>
+            <h1 className="text-2xl font-bold mb-6 text-gray-800">Active Pending Bookings</h1>
 
             {pending.length === 0 ? (
-                <p className="text-gray-500 text-center py-10">No pending bookings</p>
+                <p className="text-gray-500 text-center py-10">No active pending bookings</p>
             ) : (
                 <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {pending.map((booking, index) => (
@@ -71,12 +74,17 @@ const PendingList = () => {
                                 </div>
                             )}
 
-                            {booking.date && (
-                                <p className="mt-1 text-gray-600">
-                                    <span className="font-medium">Date:</span>{" "}
-                                    {new Date(booking.date).toLocaleDateString()}
+                            {/* Booking Dates */}
+                            <div className="mt-2 text-gray-600">
+                                <p>
+                                    <span className="font-medium">Pickup:</span>{" "}
+                                    {new Date(booking.pickupDate).toLocaleDateString()}
                                 </p>
-                            )}
+                                <p>
+                                    <span className="font-medium">Return:</span>{" "}
+                                    {new Date(booking.returnDate).toLocaleDateString()}
+                                </p>
+                            </div>
 
                             <p className="mt-1 text-gray-600">
                                 <span className="font-medium">Price:</span>{" "}
@@ -114,8 +122,8 @@ const PendingList = () => {
                             )}
 
                             {/* Today's date below Transmission */}
-                            <p className="mt-1 text-gray-600  font-medium">
-                                <span className=" font-semibold"> Date:</span>  {today}
+                            <p className="mt-1 text-gray-600 font-medium">
+                                <span className="font-semibold">Today:</span> {today}
                             </p>
 
                             <p className="mt-1 text-gray-600">

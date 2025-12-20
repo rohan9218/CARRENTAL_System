@@ -32,6 +32,10 @@ const CarDetails = () => {
     const [showVerificationModal, setShowVerificationModal] = useState(false)
     const [verificationCode, setVerificationCode] = useState('')
     const [userAddress, setUserAddress] = useState('')
+    const [userMobile, setUserMobile] = useState('')
+    const [isCheckingAvailability, setIsCheckingAvailability] = useState(false)
+    const [isCarAvailable, setIsCarAvailable] = useState(true)
+    const [showAvailabilityModal, setShowAvailabilityModal] = useState(false)
     const currency = import.meta.env.VITE_CURRENCY
 
     const loadRazorpayScript = () => {
@@ -54,8 +58,6 @@ const CarDetails = () => {
         const returned = new Date(returnDate);
         const days = Math.ceil((returned - picked) / (1000 * 60 * 60 * 24)) + 1;
         return days > 0 ? days : 0;
-
-
     };
 
     // ✅ Total price calculation
@@ -67,6 +69,42 @@ const CarDetails = () => {
         return total;
     };
 
+    // ✅ Check car availability
+    const checkCarAvailability = async () => {
+        if (!pickupDate || !returnDate || !car) {
+            setIsCarAvailable(true);
+            return;
+        }
+
+        setIsCheckingAvailability(true);
+        try {
+            const response = await axios.post('/api/bookings/check-availability', {
+                location: car.location,
+                pickupDate,
+                returnDate
+            });
+
+            if (response.data.success) {
+                // Check if the current car is available in the response
+                const availableCar = response.data.availableCars.find(availableCar =>
+                    availableCar._id === car._id
+                );
+                const available = !!availableCar;
+                setIsCarAvailable(available);
+
+                if (!available) {
+                    setShowAvailabilityModal(true);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking availability:', error);
+            // If check fails, assume car is available but show warning
+            setIsCarAvailable(true);
+        } finally {
+            setIsCheckingAvailability(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault()
 
@@ -75,15 +113,33 @@ const CarDetails = () => {
             return
         }
 
+        // Check availability before proceeding
+        if (!isCarAvailable) {
+            setShowAvailabilityModal(true);
+            return;
+        }
+
         if (!editingBooking && !idProof) {
             toast.error("Please upload a valid ID proof")
             return
         }
 
-        // Check if address is required for driver option
-        if (driverOption === 'with' && !userAddress.trim()) {
-            toast.error("Please enter your address for driver service")
-            return
+        // Check if address and mobile are required for driver option
+        if (driverOption === 'with') {
+            if (!userAddress.trim()) {
+                toast.error("Please enter your address for driver service")
+                return
+            }
+            if (!userMobile.trim()) {
+                toast.error("Please enter your mobile number for driver service")
+                return
+            }
+            // Validate mobile number format
+            const mobileRegex = /^[0-9]{10}$/;
+            if (!mobileRegex.test(userMobile.replace(/\D/g, ''))) {
+                toast.error("Please enter a valid 10-digit mobile number")
+                return
+            }
         }
 
         if (editingBooking) {
@@ -93,7 +149,10 @@ const CarDetails = () => {
                 formData.append("pickupDate", pickupDate)
                 formData.append("returnDate", returnDate)
                 formData.append("withDriver", driverOption === 'with')
-                if (driverOption === 'with') formData.append("userAddress", userAddress)
+                if (driverOption === 'with') {
+                    formData.append("userAddress", userAddress)
+                    formData.append("userMobile", userMobile)
+                }
                 if (idProof) formData.append("idProof", idProof)
 
                 const response = await axios.put(`/api/bookings/${editingBooking._id}`, formData, {
@@ -120,7 +179,10 @@ const CarDetails = () => {
                 formData.append("pickupDate", pickupDate)
                 formData.append("returnDate", returnDate)
                 formData.append("withDriver", driverOption === 'with')
-                if (driverOption === 'with') formData.append("userAddress", userAddress)
+                if (driverOption === 'with') {
+                    formData.append("userAddress", userAddress)
+                    formData.append("userMobile", userMobile)
+                }
                 formData.append("paymentMode", "cash")
                 if (idProof) formData.append("idProof", idProof)
 
@@ -148,9 +210,20 @@ const CarDetails = () => {
                 toast.error("Please upload a valid ID proof before paying")
                 return;
             }
-            if (driverOption === 'with' && !userAddress.trim()) {
-                toast.error("Please enter your address for driver service")
-                return;
+            if (driverOption === 'with') {
+                if (!userAddress.trim()) {
+                    toast.error("Please enter your address for driver service")
+                    return;
+                }
+                if (!userMobile.trim()) {
+                    toast.error("Please enter your mobile number for driver service")
+                    return;
+                }
+                const mobileRegex = /^[0-9]{10}$/;
+                if (!mobileRegex.test(userMobile.replace(/\D/g, ''))) {
+                    toast.error("Please enter a valid 10-digit mobile number")
+                    return;
+                }
             }
 
             try {
@@ -184,14 +257,15 @@ const CarDetails = () => {
                     prefill: {
                         name: user?.name || "",
                         email: user?.email || "",
-                        contact: user?.phone || ""
+                        contact: userMobile || user?.phone || ""
                     },
                     notes: {
                         carId: id,
                         pickupDate,
                         returnDate,
                         withDriver: driverOption === 'with' ? "true" : "false",
-                        userAddress: driverOption === 'with' ? userAddress : ""
+                        userAddress: driverOption === 'with' ? userAddress : "",
+                        userMobile: driverOption === 'with' ? userMobile : ""
                     },
                     theme: { color: "#0ea5e9" },
                     handler: async function (response) {
@@ -212,7 +286,10 @@ const CarDetails = () => {
                             formData.append("pickupDate", pickupDate);
                             formData.append("returnDate", returnDate);
                             formData.append("withDriver", driverOption === 'with');
-                            if (driverOption === 'with') formData.append("userAddress", userAddress);
+                            if (driverOption === 'with') {
+                                formData.append("userAddress", userAddress);
+                                formData.append("userMobile", userMobile);
+                            }
                             formData.append("paymentMode", "online");
                             formData.append("paymentId", response.razorpay_payment_id);
                             formData.append("orderId", response.razorpay_order_id);
@@ -271,9 +348,21 @@ const CarDetails = () => {
             setReturnDate(booking.returnDate.split('T')[0])
             setDriverOption(booking.withDriver ? 'with' : 'without')
             setUserAddress(booking.userAddress || '')
+            setUserMobile(booking.userMobile || '')
             setCar(booking.car)
         }
     }, [location.state, setPickupDate, setReturnDate])
+
+    // ✅ Check availability when dates change
+    useEffect(() => {
+        if (pickupDate && returnDate && car) {
+            const timer = setTimeout(() => {
+                checkCarAvailability();
+            }, 500); // Debounce to avoid too many API calls
+
+            return () => clearTimeout(timer);
+        }
+    }, [pickupDate, returnDate, car]);
 
     const handleDriverChange = (option) => {
         if (option === 'with') {
@@ -281,6 +370,7 @@ const CarDetails = () => {
         } else {
             setDriverOption('without')
             setUserAddress('') // Clear address when switching to without driver
+            setUserMobile('') // Clear mobile when switching to without driver
         }
     }
 
@@ -288,6 +378,11 @@ const CarDetails = () => {
         setDriverOption('with')
         setShowDriverModal(false)
         toast.success("Driver Charges ₹999 added")
+    }
+
+    const handleMobileChange = (e) => {
+        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+        setUserMobile(value);
     }
 
     const days = computeNoOfDays();
@@ -384,6 +479,22 @@ const CarDetails = () => {
                             <p className='text-sm text-gray-600 font-medium'>
                                 Total Price: {currency} {totalPrice}
                             </p>
+
+                            {/* ✅ Availability Status */}
+                            {isCheckingAvailability ? (
+                                <div className="flex items-center gap-2 text-blue-600 text-sm">
+                                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                    Checking availability...
+                                </div>
+                            ) : !isCarAvailable ? (
+                                <div className="text-red-600 text-sm font-medium bg-red-50 p-2 rounded-lg">
+                                    ❌ This car is not available for selected dates
+                                </div>
+                            ) : (
+                                <div className="text-green-600 text-sm font-medium bg-green-50 p-2 rounded-lg">
+                                    ✅ Car is available for selected dates
+                                </div>
+                            )}
                         </>
                     )}
                     <hr className='border-borderColor my-6' />
@@ -442,24 +553,42 @@ const CarDetails = () => {
                         </div>
                     </div>
 
-                    {/* Address Field - Only show when driver option is selected */}
+                    {/* Address and Mobile Fields - Only show when driver option is selected */}
                     {driverOption === 'with' && (
-                        <div className='flex flex-col gap-2'>
-                            <label htmlFor='user-address' className='text-gray-500 font-medium'>
-                                Your Address for Driver Pickup *
-                            </label>
-                            <textarea
-                                value={userAddress}
-                                onChange={e => setUserAddress(e.target.value)}
-                                placeholder='Enter your complete address where the driver should pick you up'
-                                className='border border-borderColor px-3 py-2 rounded-lg resize-none h-20'
-                                required
-                                id='user-address'
-                            />
-                            <p className='text-xs text-gray-400'>
-                                {/* Please provide your complete address for driver pickup service */}
-                            </p>
-                        </div>
+                        <>
+                            <div className='flex flex-col gap-2'>
+                                <label htmlFor='user-address' className='text-gray-500 font-medium'>
+                                    Your Address for Driver Pickup *
+                                </label>
+                                <textarea
+                                    value={userAddress}
+                                    onChange={e => setUserAddress(e.target.value)}
+                                    placeholder='Enter your complete address where the driver should pick you up'
+                                    className='border border-borderColor px-3 py-2 rounded-lg resize-none h-20'
+                                    required
+                                    id='user-address'
+                                />
+                            </div>
+
+                            <div className='flex flex-col gap-2'>
+                                <label htmlFor='user-mobile' className='text-gray-500 font-medium'>
+                                    Your Mobile Number *
+                                </label>
+                                <input
+                                    type='tel'
+                                    value={userMobile}
+                                    onChange={handleMobileChange}
+                                    placeholder='Enter your 10-digit mobile number'
+                                    className='border border-borderColor px-3 py-2 rounded-lg'
+                                    required
+                                    id='user-mobile'
+                                    maxLength={10}
+                                />
+                                <p className='text-xs text-gray-400'>
+                                    The driver will contact you on this number for pickup coordination
+                                </p>
+                            </div>
+                        </>
                     )}
 
                     <div className='flex flex-col gap-2'>
@@ -502,8 +631,16 @@ const CarDetails = () => {
                         </div>
                     </div>
 
-                    <button className='w-full bg-primary hover:bg-primary-dull transition-all py-3 font-medium text-white rounded-xl cursor-pointer'>
-                        {editingBooking ? "Update Booking" : (paymentMode === 'online' ? "Pay & Book" : "Book Now")}
+                    <button
+                        className={`w-full transition-all py-3 font-medium text-white rounded-xl cursor-pointer ${!isCarAvailable
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-primary hover:bg-primary-dull'
+                            }`}
+                        disabled={!isCarAvailable || isCheckingAvailability}
+                    >
+                        {isCheckingAvailability ? "Checking Availability..." :
+                            editingBooking ? "Update Booking" :
+                                (paymentMode === 'online' ? "Pay & Book" : "Book Now")}
                     </button>
 
                     <p className='text-center text-sm'>
@@ -512,6 +649,7 @@ const CarDetails = () => {
                 </motion.form>
             </div>
 
+            {/* Driver Charges Modal */}
             {showDriverModal && (
                 <div className='fixed inset-0 flex items-center justify-center bg-black/50 z-50'>
                     <div className='bg-white p-6 rounded-lg shadow-lg max-w-sm text-center'>
@@ -535,6 +673,43 @@ const CarDetails = () => {
                 </div>
             )}
 
+            {/* Car Not Available Modal */}
+            {showAvailabilityModal && (
+                <div className='fixed inset-0 flex items-center justify-center bg-black/50 z-50'>
+                    <div className='bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4 text-center'>
+                        <div className='w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4'>
+                            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+
+                        <h2 className='text-xl font-bold mb-4 text-red-600'>Car Not Available</h2>
+                        <p className='text-gray-600 mb-4'>
+                            This car is already booked for the selected dates:
+                        </p>
+                        <div className='bg-gray-50 p-4 rounded-lg mb-4'>
+                            <p className='font-medium'>{car.brand} {car.model}</p>
+                            <p className='text-sm text-gray-600'>
+                                Pickup: {new Date(pickupDate).toLocaleDateString()}
+                            </p>
+                            <p className='text-sm text-gray-600'>
+                                Return: {new Date(returnDate).toLocaleDateString()}
+                            </p>
+                        </div>
+                        <p className='text-gray-600 mb-6'>
+                            Please select different dates to proceed with booking.
+                        </p>
+                        <button
+                            onClick={() => setShowAvailabilityModal(false)}
+                            className='w-full bg-primary text-white py-3 rounded-lg hover:bg-primary-dull transition-all font-medium'
+                        >
+                            OK, Select Different Dates
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Booking Confirmed Modal */}
             {showVerificationModal && (
                 <div className='fixed inset-0 flex items-center justify-center bg-black/50 z-50'>
                     <div className='bg-white p-8 rounded-lg shadow-lg max-w-md w-full mx-4 text-center'>
