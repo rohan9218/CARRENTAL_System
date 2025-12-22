@@ -1,5 +1,5 @@
 import pdf from 'html-pdf';
-import nodemailer from 'nodemailer';
+import fetch from 'node-fetch'; // For Brevo API
 import path from "path";
 import { fileURLToPath } from "url";
 import Booking from "../models/Booking.js";
@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 
 // ✅ MAIN OWNER EMAIL FROM .env
 const MAIN_OWNER_EMAIL = process.env.MAIN_OWNER_EMAIL;
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 // Function to Check Availability of Car for a given Date
 const checkAvailability = async (carId, pickupDate, returnDate, excludeBookingId = null) => {
@@ -96,14 +97,54 @@ export const checkAvailabilityOfCar = async (req, res) => {
     }
 };
 
-// Nodemailer transporter
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
+// Enhanced Brevo email function with attachment support
+const sendBrevoEmail = async (toEmail, subject, htmlContent, attachments = []) => {
+    try {
+        console.log('📧 Sending email via Brevo to:', toEmail);
+        
+        const emailData = {
+            sender: {
+                name: 'Car Rental System',
+                email: 'rohandesai9218@gmail.com' // Use your email as sender
+            },
+            to: [{ email: toEmail }],
+            subject: subject,
+            htmlContent: htmlContent
+        };
+
+        // Add attachments if provided
+        if (attachments.length > 0) {
+            console.log('Adding PDF attachment to email');
+            emailData.attachment = attachments.map(attachment => ({
+                name: attachment.filename,
+                content: attachment.content.toString('base64')
+            }));
+        }
+
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': BREVO_API_KEY,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify(emailData)
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('❌ Brevo API Error:', data);
+            throw new Error(`Failed to send email: ${data.message || 'Unknown error'}`);
+        }
+
+        console.log(`✅ Email sent successfully to ${toEmail}`);
+        return data;
+    } catch (error) {
+        console.error('❌ Error sending email via Brevo:', error);
+        throw error;
+    }
+};
 
 // Generate random verification code
 const generateVerificationCode = () => {
@@ -111,38 +152,39 @@ const generateVerificationCode = () => {
 };
 
 // Send verification email
-const sendVerificationEmail = async (userEmail, verificationCode, carDetails, pickupDate) => {
+const sendVerificationEmail = async (userEmail, verificationCode, carDetails, pickupDate, userName = 'Customer') => {
     try {
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: userEmail,
-            subject: 'Pickup Verification Code - Car Rental',
-            html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #0ea5e9;">Car Rental Pickup Verification</h2>
-          <p>Dear Customer,</p>
-          <p>Your booking has been confirmed. Here are your pickup details:</p>
-          <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            """,
-            <p><strong>Car:</strong> ${carDetails.brand} ${carDetails.model}</p>
-            <p><strong>Pickup Date:</strong> ${new Date(pickupDate).toLocaleDateString()}</p>
-            <p><strong>Verification Code:</strong></p>
-            <h1 style="color: #0ea5e9; font-size: 32px; text-align: center; letter-spacing: 5px; margin: 20px 0;">
-              ${verificationCode}
-            </h1>
-          </div>
-          <p>Please present this code to the car owner during pickup for verification.</p>
-          <p>Thank you for choosing our service!</p>
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-          <p style="color: #6b7280; font-size: 12px;">This is an automated message, please do not reply.</p>
-        </div>
-      `
-        };
+        console.log(`📧 Preparing verification email for ${userEmail}`);
+        
+        const htmlContent = `
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2 style="color: #0ea5e9;">Car Rental Pickup Verification</h2>
+  <p>Dear ${userName},</p>
+  <p>Your booking has been confirmed. Here are your pickup details:</p>
+  <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+    <p><strong>Car:</strong> ${carDetails.brand} ${carDetails.model}</p>
+    <p><strong>Pickup Date:</strong> ${new Date(pickupDate).toLocaleDateString()}</p>
+    <p><strong>Verification Code:</strong></p>
+    <h1 style="color: #0ea5e9; font-size: 32px; text-align: center; letter-spacing: 5px; margin: 20px 0;">
+      ${verificationCode}
+    </h1>
+  </div>
+  <p>Please present this code to the car owner during pickup for verification.</p>
+  <p>Thank you for choosing our service!</p>
+  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+  <p style="color: #6b7280; font-size: 12px;">This is an automated message, please do not reply.</p>
+</div>
+        `;
 
-        await transporter.sendMail(mailOptions);
+        await sendBrevoEmail(
+            userEmail,
+            'Pickup Verification Code - Car Rental',
+            htmlContent
+        );
+        
+        console.log(`✅ Verification email sent to ${userEmail}`);
     } catch (error) {
-        console.error('Error sending verification email:', error);
-        throw new Error('Failed to send verification email');
+        console.error('❌ Error sending verification email:', error);
     }
 };
 
@@ -210,6 +252,73 @@ const generateReceiptPDF = async (booking, car, user) => {
     });
 };
 
+// Send receipt email with PDF attachment
+const sendReceiptEmail = async (userEmail, userName, booking, car, pdfBuffer) => {
+    try {
+        console.log(`📧 Preparing receipt email with PDF for ${userEmail}`);
+        
+        const htmlContent = `
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2 style="color: #0ea5e9;">Booking Confirmation - Receipt Attached</h2>
+  <p>Dear ${userName},</p>
+  <p>Your car booking has been <strong>successfully confirmed</strong>!</p>
+  
+  <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+    <p><strong>Booking Summary:</strong></p>
+    <p><strong>Car:</strong> ${car.brand} ${car.model}</p>
+    <p><strong>Pickup Date:</strong> ${new Date(booking.pickupDate).toLocaleDateString()}</p>
+    <p><strong>Return Date:</strong> ${new Date(booking.returnDate).toLocaleDateString()}</p>
+    <p><strong>Total Amount:</strong> ₹${booking.price}</p>
+  </div>
+  
+  <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #0ea5e9;">
+    <p><strong>Pickup Verification Code:</strong></p>
+    <div style="font-size: 24px; font-weight: bold; color: #0ea5e9; letter-spacing: 3px; text-align: center; margin: 10px 0;">
+      ${booking.verificationCode}
+    </div>
+    <p style="text-align: center; color: #666; font-size: 14px;">
+      Show this code to the owner at pickup time
+    </p>
+  </div>
+  
+  <p><strong>What's included in the attached PDF receipt:</strong></p>
+  <ul>
+    <li>Detailed booking summary</li>
+    <li>Price breakdown</li>
+    <li>Pickup verification code</li>
+    <li>Booking ID for reference</li>
+  </ul>
+  
+  <p>Thank you for choosing our service!</p>
+  
+  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+  <p style="color: #6b7280; font-size: 12px;">
+    This is an automated message. Your detailed receipt is attached as a PDF file.
+  </p>
+</div>
+        `;
+
+        // Send email with PDF attachment
+        await sendBrevoEmail(
+            userEmail,
+            `Booking Receipt - ${car.brand} ${car.model}`,
+            htmlContent,
+            [
+                {
+                    filename: `CarRental_Receipt_${booking._id}.pdf`,
+                    content: pdfBuffer
+                }
+            ]
+        );
+        
+        console.log(`✅ Receipt email with PDF sent to ${userEmail}`);
+        
+    } catch (error) {
+        console.error('❌ Error sending receipt email:', error);
+        throw error;
+    }
+};
+
 // Create Booking with Receipt
 export const createBooking = async (req, res) => {
     try {
@@ -269,51 +378,40 @@ export const createBooking = async (req, res) => {
             status: paymentMode === 'online' ? 'confirmed' : 'pending'
         });
 
-        // Send verification email
+        console.log(`✅ Booking created: ${booking._id}`);
+        console.log(`📧 Sending emails to: ${userData.email}`);
+
+        // Send verification email (immediately)
         try {
             await sendVerificationEmail(
                 userData.email,
                 verificationCode,
                 { brand: carData.brand, model: carData.model },
-                pickupDate
+                pickupDate,
+                userData.name
             );
+            console.log(`✅ Verification email sent`);
         } catch (emailError) {
-            console.error('Email sending failed:', emailError);
+            console.error('❌ Verification email failed:', emailError);
         }
 
-        // Generate and send receipt PDF
-        let pdfBuffer;
+        // Generate PDF receipt and send with email attachment
         try {
-            pdfBuffer = await generateReceiptPDF(booking, carData, userData);
+            console.log(`📄 Generating PDF receipt...`);
+            const pdfBuffer = await generateReceiptPDF(booking, carData, userData);
+            console.log(`✅ PDF generated (${pdfBuffer.length} bytes)`);
+            
+            // Send receipt email with PDF attachment
+            await sendReceiptEmail(
+                userData.email,
+                userData.name,
+                booking,
+                carData,
+                pdfBuffer
+            );
+            console.log(`✅ Receipt email with PDF sent`);
         } catch (pdfError) {
-            console.error('PDF generation failed:', pdfError);
-        }
-
-        const receiptMailOptions = {
-            from: process.env.EMAIL_USER,
-            to: userData.email,
-            subject: `Booking Receipt - ${carData.brand} ${carData.model}`,
-            html: `
-                <p>Dear ${userData.name},</p>
-                <p>Your car booking has been <strong>confirmed</strong>.</p>
-                <p>Please find your <strong>detailed receipt attached</strong> as a PDF.</p>
-                <p><strong>Verification Code:</strong> <span style="font-size:18px; font-weight:bold; color:#0ea5e9;">${verificationCode}</span></p>
-                <p>Show this code to the owner at pickup time.</p>
-                <p>Thank you for choosing us!</p>
-            `,
-            attachments: pdfBuffer ? [
-                {
-                    filename: `Receipt_${booking._id}.pdf`,
-                    content: pdfBuffer,
-                    contentType: 'application/pdf'
-                }
-            ] : []
-        };
-
-        try {
-            await transporter.sendMail(receiptMailOptions);
-        } catch (receiptError) {
-            console.error('Receipt email failed:', receiptError);
+            console.error('❌ PDF generation or email failed:', pdfError);
         }
 
         res.json({
@@ -322,7 +420,7 @@ export const createBooking = async (req, res) => {
             verificationCode
         });
     } catch (error) {
-        console.log(error.message);
+        console.log('❌ Booking creation error:', error.message);
         res.json({ success: false, message: error.message });
     }
 };

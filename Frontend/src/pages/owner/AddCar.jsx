@@ -8,6 +8,7 @@ import { useAppContext } from "../../context/AppContext"
 
 // ✅ Import Gemini
 import { GoogleGenerativeAI } from "@google/generative-ai"
+const MAIN_OWNER_EMAIL = import.meta.env.VITE_MAIN_OWNER_EMAIL;
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
 

@@ -5,7 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../../context/AppContext";
 
 // Backend base URL (use environment variable in production)
-const BACKEND_URL = VITE_API_BASE_URL;
+const BACKEND_URL = import.meta.env.VITE_BASE_URL;
+
 
 const BookingsList = () => {
     const { axios, isOwner, currency } = useAppContext();
