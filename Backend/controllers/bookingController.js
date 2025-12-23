@@ -1,7 +1,7 @@
 import pdf from 'html-pdf';
-import fetch from 'node-fetch'; // For Brevo API
 import path from "path";
 import { fileURLToPath } from "url";
+import { sendEmail } from "../configs/email.js";
 import Booking from "../models/Booking.js";
 import Car from "../models/Car.js";
 import User from "../models/User.js";
@@ -11,7 +11,6 @@ const __dirname = path.dirname(__filename);
 
 // ✅ MAIN OWNER EMAIL FROM .env
 const MAIN_OWNER_EMAIL = process.env.MAIN_OWNER_EMAIL;
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
 
 // Function to Check Availability of Car for a given Date
 const checkAvailability = async (carId, pickupDate, returnDate, excludeBookingId = null) => {
@@ -97,61 +96,12 @@ export const checkAvailabilityOfCar = async (req, res) => {
     }
 };
 
-// Enhanced Brevo email function with attachment support
-const sendBrevoEmail = async (toEmail, subject, htmlContent, attachments = []) => {
-    try {
-        console.log('📧 Sending email via Brevo to:', toEmail);
-        
-        const emailData = {
-            sender: {
-                name: 'Car Rental System',
-                email: 'rohandesai9218@gmail.com' // Use your email as sender
-            },
-            to: [{ email: toEmail }],
-            subject: subject,
-            htmlContent: htmlContent
-        };
-
-        // Add attachments if provided
-        if (attachments.length > 0) {
-            console.log('Adding PDF attachment to email');
-            emailData.attachment = attachments.map(attachment => ({
-                name: attachment.filename,
-                content: attachment.content.toString('base64')
-            }));
-        }
-
-        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'api-key': BREVO_API_KEY,
-                'content-type': 'application/json'
-            },
-            body: JSON.stringify(emailData)
-        });
-
-        const data = await response.json();
-        
-        if (!response.ok) {
-            console.error('❌ Brevo API Error:', data);
-            throw new Error(`Failed to send email: ${data.message || 'Unknown error'}`);
-        }
-
-        console.log(`✅ Email sent successfully to ${toEmail}`);
-        return data;
-    } catch (error) {
-        console.error('❌ Error sending email via Brevo:', error);
-        throw error;
-    }
-};
-
 // Generate random verification code
 const generateVerificationCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send verification email
+// Send verification email using Nodemailer
 const sendVerificationEmail = async (userEmail, verificationCode, carDetails, pickupDate, userName = 'Customer') => {
     try {
         console.log(`📧 Preparing verification email for ${userEmail}`);
@@ -176,7 +126,7 @@ const sendVerificationEmail = async (userEmail, verificationCode, carDetails, pi
 </div>
         `;
 
-        await sendBrevoEmail(
+        await sendEmail(
             userEmail,
             'Pickup Verification Code - Car Rental',
             htmlContent
@@ -252,7 +202,7 @@ const generateReceiptPDF = async (booking, car, user) => {
     });
 };
 
-// Send receipt email with PDF attachment
+// Send receipt email with PDF attachment using Nodemailer
 const sendReceiptEmail = async (userEmail, userName, booking, car, pdfBuffer) => {
     try {
         console.log(`📧 Preparing receipt email with PDF for ${userEmail}`);
@@ -298,8 +248,8 @@ const sendReceiptEmail = async (userEmail, userName, booking, car, pdfBuffer) =>
 </div>
         `;
 
-        // Send email with PDF attachment
-        await sendBrevoEmail(
+        // Send email with PDF attachment using Nodemailer
+        await sendEmail(
             userEmail,
             `Booking Receipt - ${car.brand} ${car.model}`,
             htmlContent,

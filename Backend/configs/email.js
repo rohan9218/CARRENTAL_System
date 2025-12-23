@@ -1,32 +1,31 @@
-// utils/email.js
-import SibApiV3Sdk from "sib-api-v3-sdk";
+import transporter from './nodemailer.js';
 
-export const sendEmail = async (to, subject, html) => {
+export const sendEmail = async (toEmail, subject, htmlContent, attachments = []) => {
   try {
-    const client = SibApiV3Sdk.ApiClient.instance;
+    console.log('📧 Sending email via Nodemailer to:', toEmail);
+    
+    const mailOptions = {
+      from: `"Car Rental System" <${process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: subject,
+      html: htmlContent,
+    };
 
-    // 🔐 Brevo API authentication
-    client.authentications["api-key"].apiKey =
-      process.env.BREVO_API_KEY;
+    // Add attachments if provided
+    if (attachments.length > 0) {
+      mailOptions.attachments = attachments.map(attachment => ({
+        filename: attachment.filename,
+        content: attachment.content,
+        encoding: 'base64'
+      }));
+    }
 
-    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-
-    await apiInstance.sendTransacEmail({
-      sender: {
-        email: process.env.MAIN_OWNER_EMAIL || "rohandesai9218@gmail.com",
-        name: "Car Rental App",
-      },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-    });
-
-    console.log("✅ Email sent via Brevo to:", to);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Email sent successfully to ${toEmail}: ${info.messageId}`);
+    return info;
+    
   } catch (error) {
-    console.error(
-      "❌ Brevo Email Error:",
-      error.response?.body || error
-    );
-    throw new Error("Email not sent");
+    console.error('❌ Error sending email via Nodemailer:', error);
+    throw error;
   }
 };
