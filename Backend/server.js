@@ -11,35 +11,50 @@ import newsletterRouter from './routes/newsletterRouter.js';
 import ownerRouter from './routes/ownerRoutes.js';
 import paymentRouter from "./routes/paymentRouter.js";
 import userRouter from './routes/userRoutes.js';
+
 // Initialise Express App
-const app = express()
+const app = express();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// Connect Database
-await connectDB()
 
-// Middleware
+// Connect Database
+await connectDB();
+
+// ✅ CORS FIX (Local + Deployed Frontend)
+const allowedOrigins = [
+    "http://localhost:5173",
+    "https://carrental-system-management.vercel.app"
+];
+
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
     credentials: true
 }));
 
+// ✅ Handle preflight requests
+app.options("*", cors());
+
 app.use(express.json());
 
-app.get('/', (req, res) => res.send("Server is running"))
-app.use('/api/user',userRouter)
-app.use('/api/owner',ownerRouter)
-app.use('/api/bookings',bookingRouter)
+app.get('/', (req, res) => res.send("Server is running"));
+
+app.use('/api/user', userRouter);
+app.use('/api/owner', ownerRouter);
+app.use('/api/bookings', bookingRouter);
 app.use("/api/contact", contactRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/newsletter", newsletterRouter);
-
 app.use("/api/payments", paymentRouter);
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT} `))
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
