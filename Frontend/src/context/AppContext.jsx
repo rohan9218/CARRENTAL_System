@@ -20,9 +20,15 @@ export const AppProvider = ({ children }) => {
     const [cars, setCars] = useState([]);
     const [carSearchInput, setCarSearchInput] = useState("");
     const [loading, setLoading] = useState(true);
-    const [theme, setTheme] = useState(localStorage.getItem("theme") || "light"); // ✅ theme state
+    const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
 
-    const fetchUser = async (showError = false) => {
+    // ✅ FETCH USER (ONLY WHEN TOKEN EXISTS)
+    const fetchUser = async () => {
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const { data } = await axios.get('/api/user/data');
             if (data.success) {
@@ -32,8 +38,7 @@ export const AppProvider = ({ children }) => {
                 setUser(null);
                 setIsOwner(false);
             }
-        } catch (error) {
-            if (showError) toast.error(error.message);
+        } catch {
             setUser(null);
             setIsOwner(false);
         } finally {
@@ -41,12 +46,13 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    const fetchCars = async (showError = false) => {
+    // ✅ PUBLIC API – NO AUTH REQUIRED
+    const fetchCars = async () => {
         try {
             const { data } = await axios.get('/api/user/cars');
-            data.success ? setCars(data.cars) : (showError && toast.error(data.message));
-        } catch (error) {
-            if (showError) toast.error(error.message);
+            if (data.success) setCars(data.cars);
+        } catch {
+            // silently fail (no toast for guests)
         }
     };
 
@@ -59,7 +65,6 @@ export const AppProvider = ({ children }) => {
         toast.success('You have been logged out');
     };
 
-    // ✅ Theme toggler
     const toggleTheme = () => {
         const newTheme = theme === "light" ? "dark" : "light";
         setTheme(newTheme);
@@ -67,25 +72,26 @@ export const AppProvider = ({ children }) => {
         document.documentElement.setAttribute("data-theme", newTheme);
     };
 
+    // ✅ INITIAL LOAD
     useEffect(() => {
         const storedToken = localStorage.getItem('token');
+
         if (storedToken) {
             setToken(storedToken);
-            axios.defaults.headers.common['Authorization'] = `${storedToken}`;
-            fetchUser(false);
-        } else {
-            setLoading(false);
+            axios.defaults.headers.common['Authorization'] = storedToken;
         }
-        fetchCars(false);
 
-        // ✅ apply theme on startup
+        fetchCars();   // public
+        fetchUser();   // protected (safe)
+
         document.documentElement.setAttribute("data-theme", theme);
     }, []);
 
+    // ✅ TOKEN CHANGE
     useEffect(() => {
         if (token) {
-            axios.defaults.headers.common['Authorization'] = `${token}`;
-            fetchUser(false);
+            axios.defaults.headers.common['Authorization'] = token;
+            fetchUser();
         }
     }, [token]);
 
@@ -94,14 +100,18 @@ export const AppProvider = ({ children }) => {
     }, [theme]);
 
     const value = {
-        navigate, currency, axios, user, setUser,
-        token, setToken, isOwner, setIsOwner,
-        fetchUser, showLogin, setShowLogin,
-        logout, fetchCars, cars, setCars,
-        pickupDate, setPickupDate, returnDate, setReturnDate,
+        navigate, currency, axios,
+        user, setUser,
+        token, setToken,
+        isOwner, setIsOwner,
+        showLogin, setShowLogin,
+        logout,
+        fetchCars, cars, setCars,
+        pickupDate, setPickupDate,
+        returnDate, setReturnDate,
         carSearchInput, setCarSearchInput,
         loading,
-        theme, toggleTheme // ✅ added theme controls
+        theme, toggleTheme
     };
 
     return (
