@@ -15,14 +15,11 @@ export const AppProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [isOwner, setIsOwner] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
-    const [pickupDate, setPickupDate] = useState('');
-    const [returnDate, setReturnDate] = useState('');
     const [cars, setCars] = useState([]);
-    const [carSearchInput, setCarSearchInput] = useState("");
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
 
-    // ✅ FETCH USER (ONLY WHEN TOKEN EXISTS)
+    // ✅ SAFE FETCH USER (NO TOAST EVER)
     const fetchUser = async () => {
         if (!token) {
             setLoading(false);
@@ -39,6 +36,7 @@ export const AppProvider = ({ children }) => {
                 setIsOwner(false);
             }
         } catch {
+            // ❌ DO NOT SHOW TOAST
             setUser(null);
             setIsOwner(false);
         } finally {
@@ -46,13 +44,13 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // ✅ PUBLIC API – NO AUTH REQUIRED
+    // ✅ PUBLIC API
     const fetchCars = async () => {
         try {
             const { data } = await axios.get('/api/user/cars');
             if (data.success) setCars(data.cars);
         } catch {
-            // silently fail (no toast for guests)
+            // silent
         }
     };
 
@@ -65,34 +63,25 @@ export const AppProvider = ({ children }) => {
         toast.success('You have been logged out');
     };
 
-    const toggleTheme = () => {
-        const newTheme = theme === "light" ? "dark" : "light";
-        setTheme(newTheme);
-        localStorage.setItem("theme", newTheme);
-        document.documentElement.setAttribute("data-theme", newTheme);
-    };
-
-    // ✅ INITIAL LOAD
+    // ✅ INITIAL LOAD (ONCE)
     useEffect(() => {
         const storedToken = localStorage.getItem('token');
-
         if (storedToken) {
             setToken(storedToken);
             axios.defaults.headers.common['Authorization'] = storedToken;
         }
 
-        fetchCars();   // public
-        fetchUser();   // protected (safe)
+        fetchCars();
+        fetchUser();
 
         document.documentElement.setAttribute("data-theme", theme);
     }, []);
 
-    // ✅ TOKEN CHANGE
+    // ✅ TOKEN CHANGE (ONLY IF REAL TOKEN)
     useEffect(() => {
-        if (token) {
-            axios.defaults.headers.common['Authorization'] = token;
-            fetchUser();
-        }
+        if (!token) return;
+        axios.defaults.headers.common['Authorization'] = token;
+        fetchUser();
     }, [token]);
 
     useEffect(() => {
@@ -100,18 +89,27 @@ export const AppProvider = ({ children }) => {
     }, [theme]);
 
     const value = {
-        navigate, currency, axios,
-        user, setUser,
-        token, setToken,
-        isOwner, setIsOwner,
-        showLogin, setShowLogin,
+        navigate,
+        currency,
+        axios,
+        user,
+        setUser,
+        token,
+        setToken,
+        isOwner,
+        setIsOwner,
+        showLogin,
+        setShowLogin,
         logout,
-        fetchCars, cars, setCars,
-        pickupDate, setPickupDate,
-        returnDate, setReturnDate,
-        carSearchInput, setCarSearchInput,
+        cars,
+        fetchCars,
         loading,
-        theme, toggleTheme
+        theme,
+        toggleTheme: () => {
+            const t = theme === "light" ? "dark" : "light";
+            setTheme(t);
+            localStorage.setItem("theme", t);
+        }
     };
 
     return (
