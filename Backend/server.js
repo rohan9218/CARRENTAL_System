@@ -21,11 +21,11 @@ const __dirname = path.dirname(__filename);
 // Connect Database
 await connectDB();
 
-// ✅ CORS FIX (Local + Deployed Frontend)
 const allowedOrigins = [
     "http://localhost:5173",
-    "https://carrental-system-management.vercel.app"
+    "https://carrental-management-system.vercel.app"
 ];
+
 
 app.use(cors({
     origin: function (origin, callback) {
