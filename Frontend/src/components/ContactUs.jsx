@@ -38,7 +38,7 @@ const ContactUs = () => {
 
     return (
         <div
-            className="relative flex items-center justify-center min-h-screen overflow-hidden bg-cover bg-center"
+            className="relative flex items-center justify-center min-h-screen overflow-hidden bg-cover bg-center mt-13"
             style={{ backgroundImage: "url('https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1600&q=80')" }}  // ✅ Add your car image path here
         >
 
@@ -68,7 +68,7 @@ const ContactUs = () => {
                 className="relative z-10 w-full max-w-4xl bg-white/10 backdrop-blur-xl shadow-2xl rounded-2xl p-10 flex flex-col lg:flex-row gap-10 border border-white/20"
             >
                 {/* Left Section - Info */}
-                <div className="flex-1 space-y-6 text-white">
+                <div className="flex-1 space-y-6 text-white ">
                     <motion.h2
                         initial={{ opacity: 0, y: -30 }}
                         animate={{ opacity: 1, y: 0 }}
