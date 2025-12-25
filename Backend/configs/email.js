@@ -1,31 +1,23 @@
-import transporter from './nodemailer.js';
+import { sendEmailViaBrevo } from './brevo.js';
 
 export const sendEmail = async (toEmail, subject, htmlContent, attachments = []) => {
   try {
-    console.log('📧 Sending email via Nodemailer to:', toEmail);
+    console.log(`📧 Sending email to: ${toEmail}`);
     
-    const mailOptions = {
-      from: `"Car Rental System" <${process.env.EMAIL_USER}>`,
-      to: toEmail,
-      subject: subject,
-      html: htmlContent,
-    };
-
-    // Add attachments if provided
-    if (attachments.length > 0) {
-      mailOptions.attachments = attachments.map(attachment => ({
+    // Convert attachments for Brevo format if needed
+    let brevoAttachments = [];
+    if (attachments && attachments.length > 0) {
+      brevoAttachments = attachments.map(attachment => ({
         filename: attachment.filename,
-        content: attachment.content,
-        encoding: 'base64'
+        content: attachment.content
       }));
     }
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent successfully to ${toEmail}: ${info.messageId}`);
-    return info;
+    
+    // Send email via Brevo
+    return await sendEmailViaBrevo(toEmail, subject, htmlContent, brevoAttachments);
     
   } catch (error) {
-    console.error('❌ Error sending email via Nodemailer:', error);
+    console.error('❌ Error in sendEmail function:', error.message);
     throw error;
   }
 };

@@ -105,7 +105,7 @@ const generateVerificationCode = () => {
 const sendVerificationEmail = async (userEmail, verificationCode, carDetails, pickupDate, userName = 'Customer') => {
     try {
         console.log(`📧 Preparing verification email for ${userEmail}`);
-        
+
         const htmlContent = `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
   <h2 style="color: #0ea5e9;">Car Rental Pickup Verification</h2>
@@ -131,7 +131,7 @@ const sendVerificationEmail = async (userEmail, verificationCode, carDetails, pi
             'Pickup Verification Code - Car Rental',
             htmlContent
         );
-        
+
         console.log(`✅ Verification email sent to ${userEmail}`);
     } catch (error) {
         console.error('❌ Error sending verification email:', error);
@@ -202,11 +202,11 @@ const generateReceiptPDF = async (booking, car, user) => {
     });
 };
 
-// Send receipt email with PDF attachment using Nodemailer
+// Send receipt email with PDF attachment using Brevo
 const sendReceiptEmail = async (userEmail, userName, booking, car, pdfBuffer) => {
     try {
         console.log(`📧 Preparing receipt email with PDF for ${userEmail}`);
-        
+
         const htmlContent = `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
   <h2 style="color: #0ea5e9;">Booking Confirmation - Receipt Attached</h2>
@@ -248,7 +248,10 @@ const sendReceiptEmail = async (userEmail, userName, booking, car, pdfBuffer) =>
 </div>
         `;
 
-        // Send email with PDF attachment using Nodemailer
+        // Convert PDF buffer to base64 for Brevo
+        const pdfBase64 = pdfBuffer.toString('base64');
+
+        // Send email with PDF attachment using Brevo
         await sendEmail(
             userEmail,
             `Booking Receipt - ${car.brand} ${car.model}`,
@@ -256,19 +259,18 @@ const sendReceiptEmail = async (userEmail, userName, booking, car, pdfBuffer) =>
             [
                 {
                     filename: `CarRental_Receipt_${booking._id}.pdf`,
-                    content: pdfBuffer
+                    content: pdfBase64
                 }
             ]
         );
-        
+
         console.log(`✅ Receipt email with PDF sent to ${userEmail}`);
-        
+
     } catch (error) {
         console.error('❌ Error sending receipt email:', error);
         throw error;
     }
 };
-
 // Create Booking with Receipt
 export const createBooking = async (req, res) => {
     try {
@@ -350,7 +352,7 @@ export const createBooking = async (req, res) => {
             console.log(`📄 Generating PDF receipt...`);
             const pdfBuffer = await generateReceiptPDF(booking, carData, userData);
             console.log(`✅ PDF generated (${pdfBuffer.length} bytes)`);
-            
+
             // Send receipt email with PDF attachment
             await sendReceiptEmail(
                 userData.email,
