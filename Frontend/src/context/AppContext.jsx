@@ -15,17 +15,14 @@ export const AppProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [isOwner, setIsOwner] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
+    const [pickupDate, setPickupDate] = useState('');
+    const [returnDate, setReturnDate] = useState('');
     const [cars, setCars] = useState([]);
+    const [carSearchInput, setCarSearchInput] = useState("");
     const [loading, setLoading] = useState(true);
-    const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+    const [theme, setTheme] = useState(localStorage.getItem("theme") || "light"); // ✅ theme state
 
-    // ✅ SAFE FETCH USER (NO TOAST EVER)
-    const fetchUser = async () => {
-        if (!token) {
-            setLoading(false);
-            return;
-        }
-
+    const fetchUser = async (showError = false) => {
         try {
             const { data } = await axios.get('/api/user/data');
             if (data.success) {
@@ -35,8 +32,8 @@ export const AppProvider = ({ children }) => {
                 setUser(null);
                 setIsOwner(false);
             }
-        } catch {
-            // ❌ DO NOT SHOW TOAST
+        } catch (error) {
+            if (showError) toast.error(error.message);
             setUser(null);
             setIsOwner(false);
         } finally {
@@ -44,13 +41,12 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // ✅ PUBLIC API
-    const fetchCars = async () => {
+    const fetchCars = async (showError = false) => {
         try {
             const { data } = await axios.get('/api/user/cars');
-            if (data.success) setCars(data.cars);
-        } catch {
-            // silent
+            data.success ? setCars(data.cars) : (showError && toast.error(data.message));
+        } catch (error) {
+            if (showError) toast.error(error.message);
         }
     };
 
@@ -63,25 +59,34 @@ export const AppProvider = ({ children }) => {
         toast.success('You have been logged out');
     };
 
-    // ✅ INITIAL LOAD (ONCE)
+    // ✅ Theme toggler
+    const toggleTheme = () => {
+        const newTheme = theme === "light" ? "dark" : "light";
+        setTheme(newTheme);
+        localStorage.setItem("theme", newTheme);
+        document.documentElement.setAttribute("data-theme", newTheme);
+    };
+
     useEffect(() => {
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
             setToken(storedToken);
-            axios.defaults.headers.common['Authorization'] = storedToken;
+            axios.defaults.headers.common['Authorization'] = `${storedToken}`;
+            fetchUser(false);
+        } else {
+            setLoading(false);
         }
+        fetchCars(false);
 
-        fetchCars();
-        fetchUser();
-
+        // ✅ apply theme on startup
         document.documentElement.setAttribute("data-theme", theme);
     }, []);
 
-    // ✅ TOKEN CHANGE (ONLY IF REAL TOKEN)
     useEffect(() => {
-        if (!token) return;
-        axios.defaults.headers.common['Authorization'] = token;
-        fetchUser();
+        if (token) {
+            axios.defaults.headers.common['Authorization'] = `${token}`;
+            fetchUser(false);
+        }
     }, [token]);
 
     useEffect(() => {
@@ -89,27 +94,14 @@ export const AppProvider = ({ children }) => {
     }, [theme]);
 
     const value = {
-        navigate,
-        currency,
-        axios,
-        user,
-        setUser,
-        token,
-        setToken,
-        isOwner,
-        setIsOwner,
-        showLogin,
-        setShowLogin,
-        logout,
-        cars,
-        fetchCars,
+        navigate, currency, axios, user, setUser,
+        token, setToken, isOwner, setIsOwner,
+        fetchUser, showLogin, setShowLogin,
+        logout, fetchCars, cars, setCars,
+        pickupDate, setPickupDate, returnDate, setReturnDate,
+        carSearchInput, setCarSearchInput,
         loading,
-        theme,
-        toggleTheme: () => {
-            const t = theme === "light" ? "dark" : "light";
-            setTheme(t);
-            localStorage.setItem("theme", t);
-        }
+        theme, toggleTheme // ✅ added theme controls
     };
 
     return (

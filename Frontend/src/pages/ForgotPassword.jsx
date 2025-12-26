@@ -10,11 +10,15 @@ const ForgotPassword = () => {
     const onSubmitHandler = async (e) => {
         e.preventDefault();
         setLoading(true);
+
         try {
-            const { data } = await axios.post("http://localhost:4000/api/user/forgot-password", { email });
+            const { data } = await axios.post(
+                `${import.meta.env.VITE_BASE_URL}/api/user/forgot-password`,
+                { email }
+            );
 
             if (data.success) {
-                toast.success("Password reset link sent to your email");
+                toast.success("Password reset OTP sent to your email");
             } else {
                 toast.error(data.message || "Something went wrong");
             }
@@ -27,9 +31,16 @@ const ForgotPassword = () => {
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">
-            <form onSubmit={onSubmitHandler} className="w-full max-w-md p-8 bg-white shadow-md rounded-lg">
-                <h2 className="text-2xl font-bold text-center text-gray-800">Forgot Password</h2>
-                <p className="text-gray-500 text-sm mt-2 text-center">Enter your email to receive a reset link</p>
+            <form
+                onSubmit={onSubmitHandler}
+                className="w-full max-w-md p-8 bg-white shadow-md rounded-lg"
+            >
+                <h2 className="text-2xl font-bold text-center text-gray-800">
+                    Forgot Password
+                </h2>
+                <p className="text-gray-500 text-sm mt-2 text-center">
+                    Enter your email to receive a reset OTP
+                </p>
 
                 <div className="mt-6">
                     <input
@@ -42,8 +53,12 @@ const ForgotPassword = () => {
                     />
                 </div>
 
-                <button type="submit" disabled={loading} className="w-full mt-6 py-3 bg-indigo-500 text-white rounded-lg hover:opacity-90 transition">
-                    {loading ? "Sending..." : "Send Reset Link"}
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full mt-6 py-3 bg-indigo-500 text-white rounded-lg hover:opacity-90 transition"
+                >
+                    {loading ? "Sending..." : "Send Reset OTP"}
                 </button>
             </form>
         </div>
