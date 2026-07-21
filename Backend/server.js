@@ -19,7 +19,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Connect Database initially
-await connectDB();
+try {
+    await connectDB();
+} catch (e) {
+    console.warn("Initial DB connection warning:", e.message);
+}
 
 // Ensure DB connection on every request (crucial for serverless environments)
 app.use(async (req, res, next) => {
@@ -27,7 +31,10 @@ app.use(async (req, res, next) => {
         await connectDB();
         next();
     } catch (err) {
-        res.status(500).json({ success: false, message: "Database connection failed" });
+        res.status(500).json({ 
+            success: false, 
+            message: "Database connection failed: " + err.message + ". Please ensure MONGODB_URI is configured in environment variables." 
+        });
     }
 });
 
