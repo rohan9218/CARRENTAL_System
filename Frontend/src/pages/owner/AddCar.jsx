@@ -10,8 +10,6 @@ import { useAppContext } from "../../context/AppContext"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 const MAIN_OWNER_EMAIL = import.meta.env.VITE_MAIN_OWNER_EMAIL;
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
-
 const AddCar = () => {
   const { axios, currency, user } = useAppContext()
   const { id } = useParams()
@@ -54,11 +52,30 @@ const AddCar = () => {
     fetchCar()
   }, [id])
 
+  // Helper to extract JSON from Gemini text output
+  const parseGeminiJSON = (text) => {
+    const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim()
+    const match = cleaned.match(/\{[\s\S]*\}/)
+    return match ? JSON.parse(match[0]) : JSON.parse(cleaned)
+  }
+
   // ✅ Auto-generate car details from uploaded image + AI enrichment
   const analyzeCarImage = async (file) => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+    if (!apiKey) {
+      toast.error("Gemini API key is not configured in VITE_GEMINI_API_KEY")
+      return
+    }
+
     try {
-      // Use the correct Gemini Vision model
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
+      const genAI = new GoogleGenerativeAI(apiKey)
+      // Use valid Gemini model (gemini-1.5-flash with fallback to gemini-2.0-flash)
+      let model
+      try {
+        model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+      } catch {
+        model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+      }
 
       // Convert file → Base64
       const toBase64 = (file) =>
@@ -82,14 +99,24 @@ const AddCar = () => {
       Do not include markdown or extra text.
       `
 
-      const step1Res = await model.generateContent([
-        { inlineData: { data: base64, mimeType: file.type } },
-        { text: step1Prompt },
-      ])
+      let step1Res
+      try {
+        step1Res = await model.generateContent([
+          { inlineData: { data: base64, mimeType: file.type } },
+          { text: step1Prompt },
+        ])
+      } catch (e) {
+        // Fallback to gemini-2.0-flash if model 1.5 failed at runtime
+        console.warn("Retrying Gemini Vision with gemini-2.0-flash:", e.message)
+        const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+        step1Res = await fallbackModel.generateContent([
+          { inlineData: { data: base64, mimeType: file.type } },
+          { text: step1Prompt },
+        ])
+      }
 
-      let step1Text = await step1Res.response.text()
-      step1Text = step1Text.replace(/```json/g, "").replace(/```/g, "").trim()
-      const { brand, model: carModel } = JSON.parse(step1Text)
+      const step1Text = await step1Res.response.text()
+      const { brand, model: carModel } = parseGeminiJSON(step1Text)
 
       // ---- STEP 2: Enrich details using brand + model ----
       const step2Prompt = `
@@ -108,9 +135,8 @@ const AddCar = () => {
       `
 
       const step2Res = await model.generateContent(step2Prompt)
-      let step2Text = await step2Res.response.text()
-      step2Text = step2Text.replace(/```json/g, "").replace(/```/g, "").trim()
-      const extraDetails = JSON.parse(step2Text)
+      const step2Text = await step2Res.response.text()
+      const extraDetails = parseGeminiJSON(step2Text)
 
       // ---- Merge into state ----
       setCar((prev) => ({
@@ -123,7 +149,7 @@ const AddCar = () => {
       toast.success("Car details auto-generated with AI!")
     } catch (error) {
       console.error("Gemini Error:", error)
-      toast.error("Could not analyze car image")
+      toast.error("Could not analyze car image: " + (error.message || "Unknown error"))
     }
   }
 

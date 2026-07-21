@@ -138,13 +138,14 @@ const sendVerificationEmail = async (userEmail, verificationCode, carDetails, pi
     }
 };
 
-// Generate PDF Receipt
+// Generate PDF Receipt (Serverless Safe)
 const generateReceiptPDF = async (booking, car, user) => {
-    const pickup = new Date(booking.pickupDate).toLocaleDateString('en-IN');
-    const ret = new Date(booking.returnDate).toLocaleDateString('en-IN');
-    const days = Math.ceil((new Date(booking.returnDate) - new Date(booking.pickupDate)) / (1000 * 60 * 60 * 24)) + 1;
+    try {
+        const pickup = new Date(booking.pickupDate).toLocaleDateString('en-IN');
+        const ret = new Date(booking.returnDate).toLocaleDateString('en-IN');
+        const days = Math.ceil((new Date(booking.returnDate) - new Date(booking.pickupDate)) / (1000 * 60 * 60 * 24)) + 1;
 
-    const html = `
+        const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -181,7 +182,7 @@ const generateReceiptPDF = async (booking, car, user) => {
       <tr><td>Base Price</td><td>₹${car.pricePerDay} × ${days} = ₹${car.pricePerDay * days}</td></tr>
       ${booking.withDriver ? `<tr><td>Driver Fee</td><td>₹999</td></tr>` : ''}
       <tr class="total"><td>Total Amount</td><td>₹${booking.price}</td></tr>
-      <tr><td>Payment Mode</td><td>${booking.paymentMode.toUpperCase()}</td></tr>
+      <tr><td>Payment Mode</td><td>${(booking.paymentMode || 'cash').toUpperCase()}</td></tr>
     </table>
     <div class="code">${booking.verificationCode}</div>
     <p style="text-align:center; color:#666;">Present this code at pickup</p>
@@ -194,83 +195,83 @@ const generateReceiptPDF = async (booking, car, user) => {
 </html>
     `;
 
-    return new Promise((resolve, reject) => {
-        pdf.create(html, { format: 'A4', border: '10mm' }).toBuffer((err, buffer) => {
-            if (err) return reject(err);
-            resolve(buffer);
+        return await new Promise((resolve) => {
+            pdf.create(html, { format: 'A4', border: '10mm' }).toBuffer((err, buffer) => {
+                if (err) {
+                    console.warn('⚠️ html-pdf generation unvailable in current environment:', err.message);
+                    return resolve(null);
+                }
+                resolve(buffer);
+            });
         });
-    });
+    } catch (err) {
+        console.warn('⚠️ PDF generation error, falling back to HTML email receipt:', err.message);
+        return null;
+    }
 };
 
-// Send receipt email with PDF attachment using Brevo
+// Send receipt email with optional PDF attachment
 const sendReceiptEmail = async (userEmail, userName, booking, car, pdfBuffer) => {
     try {
-        console.log(`📧 Preparing receipt email with PDF for ${userEmail}`);
+        console.log(`📧 Preparing receipt email for ${userEmail}`);
 
         const htmlContent = `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #0ea5e9;">Booking Confirmation - Receipt Attached</h2>
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
+  <h2 style="color: #0ea5e9; text-align: center;">Booking Confirmation & Receipt</h2>
   <p>Dear ${userName},</p>
   <p>Your car booking has been <strong>successfully confirmed</strong>!</p>
   
   <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-    <p><strong>Booking Summary:</strong></p>
+    <h3 style="margin-top:0; color:#333;">Booking Summary</h3>
+    <p><strong>Booking ID:</strong> ${booking._id}</p>
     <p><strong>Car:</strong> ${car.brand} ${car.model}</p>
     <p><strong>Pickup Date:</strong> ${new Date(booking.pickupDate).toLocaleDateString()}</p>
     <p><strong>Return Date:</strong> ${new Date(booking.returnDate).toLocaleDateString()}</p>
     <p><strong>Total Amount:</strong> ₹${booking.price}</p>
+    <p><strong>Payment Mode:</strong> ${(booking.paymentMode || 'cash').toUpperCase()}</p>
   </div>
   
   <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px dashed #0ea5e9;">
-    <p><strong>Pickup Verification Code:</strong></p>
-    <div style="font-size: 24px; font-weight: bold; color: #0ea5e9; letter-spacing: 3px; text-align: center; margin: 10px 0;">
+    <p style="margin:0; text-align:center; font-weight:bold;">Pickup Verification Code:</p>
+    <div style="font-size: 28px; font-weight: bold; color: #0ea5e9; letter-spacing: 4px; text-align: center; margin: 10px 0;">
       ${booking.verificationCode}
     </div>
-    <p style="text-align: center; color: #666; font-size: 14px;">
-      Show this code to the owner at pickup time
+    <p style="text-align: center; color: #666; font-size: 13px; margin:0;">
+      Show this code to the car owner at pickup time
     </p>
   </div>
-  
-  <p><strong>What's included in the attached PDF receipt:</strong></p>
-  <ul>
-    <li>Detailed booking summary</li>
-    <li>Price breakdown</li>
-    <li>Pickup verification code</li>
-    <li>Booking ID for reference</li>
-  </ul>
   
   <p>Thank you for choosing our service!</p>
   
   <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-  <p style="color: #6b7280; font-size: 12px;">
-    This is an automated message. Your detailed receipt is attached as a PDF file.
+  <p style="color: #6b7280; font-size: 12px; text-align: center;">
+    This is an automated confirmation message from Car Rental System.
   </p>
 </div>
         `;
 
-        // Convert PDF buffer to base64 for Brevo
-        const pdfBase64 = pdfBuffer.toString('base64');
+        const attachments = [];
+        if (pdfBuffer) {
+            attachments.push({
+                filename: `CarRental_Receipt_${booking._id}.pdf`,
+                content: pdfBuffer.toString('base64')
+            });
+        }
 
-        // Send email with PDF attachment using Brevo
         await sendEmail(
             userEmail,
-            `Booking Receipt - ${car.brand} ${car.model}`,
+            `Booking Confirmation - ${car.brand} ${car.model}`,
             htmlContent,
-            [
-                {
-                    filename: `CarRental_Receipt_${booking._id}.pdf`,
-                    content: pdfBase64
-                }
-            ]
+            attachments
         );
 
-        console.log(`✅ Receipt email with PDF sent to ${userEmail}`);
+        console.log(`✅ Receipt email sent to ${userEmail}`);
 
     } catch (error) {
-        console.error('❌ Error sending receipt email:', error);
-        throw error;
+        console.error('❌ Error sending receipt email:', error.message);
     }
 };
+
 // Create Booking with Receipt
 export const createBooking = async (req, res) => {
     try {
@@ -349,11 +350,8 @@ export const createBooking = async (req, res) => {
 
         // Generate PDF receipt and send with email attachment
         try {
-            console.log(`📄 Generating PDF receipt...`);
+            console.log(`📄 Generating receipt...`);
             const pdfBuffer = await generateReceiptPDF(booking, carData, userData);
-            console.log(`✅ PDF generated (${pdfBuffer.length} bytes)`);
-
-            // Send receipt email with PDF attachment
             await sendReceiptEmail(
                 userData.email,
                 userData.name,
@@ -361,9 +359,8 @@ export const createBooking = async (req, res) => {
                 carData,
                 pdfBuffer
             );
-            console.log(`✅ Receipt email with PDF sent`);
         } catch (pdfError) {
-            console.error('❌ PDF generation or email failed:', pdfError);
+            console.error('❌ Receipt email failed:', pdfError);
         }
 
         res.json({
@@ -425,7 +422,11 @@ export const changeBookingStatus = async (req, res) => {
         const { _id } = req.user;
         const { bookingId, status } = req.body;
 
-        const booking = await Booking.findById(bookingId);
+        const booking = await Booking.findById(bookingId).populate('car').populate('user', 'name email');
+
+        if (!booking) {
+            return res.json({ success: false, message: "Booking not found" });
+        }
 
         if (booking.owner.toString() !== _id.toString()) {
             return res.json({ success: false, message: "Unauthorized" });
@@ -433,6 +434,31 @@ export const changeBookingStatus = async (req, res) => {
 
         booking.status = status;
         await booking.save();
+
+        // Send Status Notification Email to User
+        if (booking.user && booking.user.email) {
+            try {
+                const statusColor = status === 'confirmed' ? '#10b981' : (status === 'cancelled' ? '#ef4444' : '#0ea5e9');
+                const htmlContent = `
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
+  <h2 style="color: ${statusColor};">Booking Status Updated</h2>
+  <p>Dear ${booking.user.name || 'Customer'},</p>
+  <p>Your booking status for <strong>${booking.car ? `${booking.car.brand} ${booking.car.model}` : 'your rental car'}</strong> has been updated to: <strong style="color: ${statusColor}; text-transform: uppercase;">${status}</strong>.</p>
+  <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+    <p><strong>Booking ID:</strong> ${booking._id}</p>
+    <p><strong>Pickup Date:</strong> ${new Date(booking.pickupDate).toLocaleDateString()}</p>
+    <p><strong>Return Date:</strong> ${new Date(booking.returnDate).toLocaleDateString()}</p>
+    <p><strong>Total Amount:</strong> ₹${booking.price}</p>
+    ${booking.verificationCode ? `<p><strong>Verification Code:</strong> ${booking.verificationCode}</p>` : ''}
+  </div>
+  <p>Thank you for choosing Car Rental!</p>
+</div>
+                `;
+                await sendEmail(booking.user.email, `Booking Status Update: ${status.toUpperCase()} - Car Rental`, htmlContent);
+            } catch (emailErr) {
+                console.error("❌ Failed to send status update email:", emailErr.message);
+            }
+        }
 
         res.json({ success: true, message: "Status Updated" });
     } catch (error) {
