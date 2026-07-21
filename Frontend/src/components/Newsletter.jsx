@@ -1,30 +1,17 @@
 import { motion } from "motion/react";
 import { useState } from "react";
+import { useAppContext } from "../context/AppContext";
 
 const Newsletter = () => {
     const [email, setEmail] = useState("");
+    const { axios } = useAppContext();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // ✅ Use backend base URL from .env (fallback to localhost)
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-
         try {
-            const res = await fetch(`${baseUrl}/api/newsletter/subscribe`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email }),
-            });
+            const { data } = await axios.post("/api/newsletter/subscribe", { email });
 
-            // ✅ If backend not reachable
-            if (!res.ok) {
-                throw new Error(`Server error: ${res.status}`);
-            }
-
-            const data = await res.json();
-
-            // ✅ Show popup with server message
             if (data.success) {
                 alert(`✅ ${data.message}`);
                 setEmail("");
