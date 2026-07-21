@@ -18,8 +18,18 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Connect Database
+// Connect Database initially
 await connectDB();
+
+// Ensure DB connection on every request (crucial for serverless environments)
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Database connection failed" });
+    }
+});
 
 const allowedOrigins = [
     "http://localhost:5173",
