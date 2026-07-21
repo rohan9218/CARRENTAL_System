@@ -179,7 +179,7 @@ const Login = () => {
             }
         } catch (error) {
             console.error(error);
-            toast.error("Something went wrong, please try again later");
+            toast.error(error.response?.data?.message || error.message || "Something went wrong, please try again later");
         }
     };
 

@@ -3,7 +3,10 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from 'react-hot-toast';
 import { useNavigate } from "react-router-dom";
 
-axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
+const rawBaseUrl = import.meta.env.VITE_BASE_URL || "";
+axios.defaults.baseURL = (typeof window !== "undefined" && window.location.protocol === "https:" && rawBaseUrl.startsWith("http://"))
+    ? ""
+    : rawBaseUrl;
 
 export const AppContext = createContext();
 
