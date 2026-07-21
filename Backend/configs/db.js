@@ -3,9 +3,10 @@ import mongoose from "mongoose";
 const connectDB = async () => {
     try {
         mongoose.connection.on('connected', () => console.log("Database Connected"));
-        await mongoose.connect(process.env.MONGODB_URI); // ✅ fixed here
+        const mongoUri = process.env.MONGODB_URI || "mongodb+srv://rohandesai9218:rohan123@cluster0.ww1xrd0.mongodb.net/carrental";
+        await mongoose.connect(mongoUri);
     } catch (error) {
-        console.log(error.message);
+        console.log("Database Connection Error:", error.message);
     }
 }
 
